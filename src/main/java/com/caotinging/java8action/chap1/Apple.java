@@ -1,5 +1,8 @@
 package com.caotinging.java8action.chap1;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * @program: Java8Action
  * @author: CaoTing
@@ -13,6 +16,12 @@ public class Apple {
     public Apple(int weight, String color){
         this.weight = weight;
         this.color = color;
+    }
+
+    public static List<Apple> getApples() {
+        return Arrays.asList(new Apple(80,"green"),
+                new Apple(155, "green"),
+                new Apple(120, "red"));
     }
 
     public Integer getWeight() {
