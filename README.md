@@ -13,7 +13,7 @@
  - [通过行为参数化传递代码](#通过行为参数化传递代码)
  - [Lambda表达式](#Lambda表达式)
 
-##
+## 为什么要关心java8
 ### java8的主要变化
 #### 流处理
 Java 8在java.util.stream中添加了一个Stream API；Stream<T>就是一系列T类型的项目。你现在可以把它看成一种比较花哨的迭代器。
