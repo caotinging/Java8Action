@@ -22,17 +22,27 @@ public class ExecuteAround {
     }
 
     // 2.定义一个环绕式的方法
-    public String processFile(BufferedReaderProcessor processor) throws IOException {
+    private static String processFile(BufferedReaderProcessor processor) throws IOException {
+        String path = ExecuteAround.class.getResource("/data.txt").getPath();
+
         // 2.1 带资源的try语句，会在方法结束后自动释放资源。简化了代码 实际上就是环绕式的方法
-        try (BufferedReader br = new BufferedReader(new FileReader("lambdasinaction/chap3/data.txt"))) {
+        try (BufferedReader br = new BufferedReader(new FileReader(path))) {
             // 2.2 真正的核心行为 --现在这个方法可以通过lambda自定义读取该文件的第一行或者最后一行等等
             return processor.process(br);
         }
     }
 
     // 3.调用
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         System.out.println("================== 环绕执行模式 ====================");
 
+        // 读取行为参数化
+        // 1.读取第一行
+        String oneLine = processFile(BufferedReader::readLine);
+        System.out.println(oneLine);
+
+        // 2.读取前两行
+        String twoLines = processFile((BufferedReader b) -> b.readLine() + b.readLine());
+        System.out.println(twoLines);
     }
 }
