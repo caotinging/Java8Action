@@ -221,7 +221,9 @@ process(() -> System.out.println("Hello World 3"));
 
 ### 付诸实践：环绕执行模式
 下图很好的展示了环绕执行模式的特点：
+
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830160355.png)
+
 比如带资源的try语句块，会在结束后释放资源。而核心代码只有 **br.readLine()**
 ```java
 public static String processFile() throws IOException { 
