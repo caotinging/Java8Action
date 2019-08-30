@@ -10,28 +10,30 @@
         - [lambda-匿名函数](#lambda-匿名函数)
     - [流](#流)
     - [默认方法](#默认方法)
- - [通过行为参数化传递代码](#通过行为参数化传递代码)
  - [Lambda表达式](#Lambda表达式)
+    - [函数式接口](#函数式接口)
+    - [付诸实践：环绕执行模式](#付诸实践：环绕执行模式)
+    - [常见的函数式接口](#常见的函数式接口)
+        - [Predicate](#Predicate)
+        - [Consumer](#Consumer)
+        - [Function](#Function)
+        - [函数式接口表格](#函数式接口表格)
 
 ## 为什么要关心java8
 ### java8的主要变化
 #### 流处理
-Java 8在java.util.stream中添加了一个Stream API；Stream<T>就是一系列T类型的项目。你现在可以把它看成一种比较花哨的迭代器。
+Java 8在java.util.stream中添加了一个Stream API；你现在可以把它看成一种比较花哨的迭代器。
   
-现在你可以在一个更高的抽象层次上写Java8程序了：思路变成了把这样的流变成那样的流（就像写数据库查询语句时的那种思路），而不是一次只处理一个项目。
+现在你可以在一个更高的抽象层次上写Java8程序了：思路变成了把这样的流变成那样的流（就像写数据库查询语句时的那种思路），而不是一次只处理一个项目。另一个好处是，Java8可以透明地把输入的不相关部分拿到几个CPU内核上去分别执行你的Stream操作流水线——这是几乎免费的并行，用不着去费劲搞Thread了。
 
-另一个好处是，Java8可以透明地把输入的不相关部分拿到几个CPU内核上去分别执行你的Stream操作流水线——这是几乎免费的并行，用不着去费劲搞Thread了。
-
-就像汽车组装流水线一样，汽车排队进入加工站，每个加工站会接收、修改汽车，然后将之传递给下一站做进一步的处理。尽管流水线实际上是一个序列，但不同加工站的运行一般是并行的。
+>就像汽车组装流水线一样，汽车排队进入加工站，每个加工站会接收、修改汽车，然后将之传递给下一站做进一步的处理。尽管流水线实际上是一个序列，但不同加工站的运行一般是并行的。
 
 #### 用行为参数化把代码传递给方法
 Java 8中增加的另一个编程概念是通过API来传递代码的能力。这听起来实在太抽象了。
 
-比方说，你有一堆发票代码，格式类似于2013UK0001、2014US0002……前四位数代表年份，接下来两个字母代表国家，最后四位是客户的代码。你可能想按照年份、客户代码，甚至国家来对发票进行排序。你真正想要的是，能够给sort命令一个参数让用户定义顺序：给sort命令传递一段独立代码。
+>比方说，你有一堆发票代码，格式类似于2013UK0001、2014US0002……前四位数代表年份，接下来两个字母代表国家，最后四位是客户的代码。你可能想按照年份、客户代码，甚至国家来对发票进行排序。你真正想要的是，能够给sort命令一个参数让用户定义顺序：给sort命令传递一段独立代码。那么，直接套在Java上，你是要让sort方法利用自定义的顺序进行比较。你可以写一个compareUsingCustomerId来比较两张发票的代码，但是在Java 8之前，你没法把这个方法传给另一个方法。你可以创建一个Comparator对象，将之传递给sort方法，但这不但啰嗦，而且让“重复使用现有行为”的思想变得不那么清楚了。
 
-那么，直接套在Java上，你是要让sort方法利用自定义的顺序进行比较。你可以写一个compareUsingCustomerId来比较两张发票的代码，但是在Java 8之前，你没法把这个方法传给另一个方法。你可以创建一个Comparator对象，将之传递给sort方法，但这不但啰嗦，而且让“重复使用现有行为”的思想变得不那么清楚了。
-
-Java 8增加了把方法（你的代码）作为参数传递给另一个方法的能力。我们把这一概念称为行为参数化。它的重要之处在哪儿呢？Stream API就是构建在通过传递代码使操作行为实现参数化的思想上的，当把compareUsingCustomerId传进去，你就把sort的行为参数化了。
+Java 8增加了把方法（你的代码）作为参数传递给另一个方法的能力。我们把这一概念称为行为参数化。它的重要之处在哪儿呢？Stream API就是构建在通过传递代码使操作行为实现参数化的思想上的，当把compareUsingCustomerId传进去，你就把sort的**行为参数化**了。
 
 #### 并行与共享的可变数据
 第三个编程概念更隐晦一点，它来自我们前面讨论流处理能力时说的“几乎免费的并行”。
@@ -40,10 +42,11 @@ Java 8增加了把方法（你的代码）作为参数传递给另一个方法�
 
 你的行为必须能够同时对不同的输入安全地执行。一般情况下这就意味着，你写代码时**不能访问共享的可变数据**。这些函数有时被称为“纯函数”或“无副作用函数”或“无状态函数”，这一点我们会在后续详细讨论。前面说的并行只有在假定你的代码的多个副本可以独立工作时才能进行。
 
-Java 8的流实现并行比Java现有的线程API更容易，因此，虽然可以使用synchronized来打破“不能有共享的可变数据”这一规则，但这相当于是在和整个体系作对，因为它使所有围绕这一规则做出的优化都失去意义了。在多个处理器内核之间使用synchronized，其代价往往比你预期的要大得多，因为同步迫使代码按照顺序执行，而这与并行处理的宗旨相悖。
+>Java 8的流实现并行比Java现有的线程API更容易，因此，虽然可以使用synchronized来打破“不能有共享的可变数据”这一规则，但这相当于是在和整个体系作对，因为它使所有围绕这一规则做出的优化都失去意义了。在多个处理器内核之间使用synchronized，其代价往往比你预期的要大得多，因为同步迫使代码按照顺序执行，而这与并行处理的宗旨相悖。
 
 这两个要点（**没有共享的可变数据，将方法和函数即代码传递给其他方法的能力**）是我们平常所说的函数式编程范式的基石。“不能有共享的可变数据”的要求意味着，一个方法是可以通过它将参数值转换为结果的方式完全描述的；换句话说，这个方法的行为就像一个数学函数，没有可见的副作用。
 
+[回顶部](#目录)
 ### Java中的函数
 Java 8中新增了函数——值的一种新形式。有了它，Java8可以进行多核处理器上的并行编程。
 
@@ -79,6 +82,7 @@ File[] hiddenFiles = new File(".").listFiles(File::isHidden);
 
 但要是Lambda的长度多于几行（它的行为也不是一目了然）的话，那你还是应该用方法引用来指向一个有描述性名称的方法，而不是使用匿名的Lambda。你应该以代码的清晰度为准绳。
 
+[回顶部](#目录)
 ### 流
 几乎每个Java应用都会制造和处理集合。但集合用起来并不总是那么理想。比方说，你需要从一个列表中筛选金额较高的交易，然后按货币分组。你需要写一大堆套路化的代码来实现这个数据处理命令，如下所示：
 ```java
@@ -169,4 +173,178 @@ default void sort(Comparator<? super E> c) {
 ```
 这意味着List的任何实体类都不需要显式实现sort，而在以前的Java版本中，除非提供了sort的实现，否则这些实体类在重新编译时都会失败。一个类可以实现多个接口，如果在好几个接口里有多个默认实现，是否意味着Java中有了某种形式的多重继承？是的，在某种程度上是这样。但是后面我们会谈到Java 8用一些限制来避免出现类似于C++中臭名昭著的菱形继承问题。
 
+[回顶部](#目录)
+## Lambda表达式
+可以把Lambda表᣹式理解为简洁地表示可传递的匿名函数的一种方式：它没有名称，但它有参数列表、函数主体、返回类型，可能还有一个可以抛出的异常列表。
 
+Lambda表达式有三个部分：
+```java
+Comparator<Apple> byWeight = 
+    (Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight());
+```
+* (Apple a1, Apple a2) 参数列表 — 这里它采用了Comparator中compare方法的参数，两个Apple。
+* 箭头— -> 把参数列表与Lambda主体分开。
+* Lambda主体 — 比较两个Apple的重量。表达式就是Lambda的返回值了。
+
+### 函数式接口
+函数式接口就是只定义一个抽象方法的接口。
+>接口现在还可以有默认方法，哪怕接口定义了很多默认方法，只要这个接口只定义了一个抽象方法。这个就是**函数式接口**。
+
+使用lambda
+```java
+Runnable r1 = () -> System.out.println("Hello World 1");
+public static void process(Runnable r){ 
+    r.run(); 
+} 
+process(r1);
+```
+使用匿名类
+```java
+Runnable r2 = new Runnable(){ 
+ public void run(){ 
+    System.out.println("Hello World 2"); 
+ } 
+};
+public static void process(Runnable r){ 
+ r.run(); 
+} 
+process(r2);
+```
+使用函数式接口+lambda
+```java
+public static void process(Runnable r){ 
+ r.run(); 
+} 
+process(() -> System.out.println("Hello World 3"));
+```
+>lambda表达式可以传递给函数式接口也可以传递给Function<T,K>等函数变量
+
+### 付诸实践：环绕执行模式
+下图很好的展示了环绕执行模式的特点：
+![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830160355.png)
+比如带资源的try语句块，会在结束后释放资源。而核心代码只有 **br.readLine()**
+```java
+public static String processFile() throws IOException { 
+    try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
+        return br.readLine(); 
+    }
+}
+```
+假如我们下次需要读取文件前两行呢？我们可能需要复制一下上面的方法。如下：
+```java
+public static String processFileTwoLine() throws IOException { 
+    try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
+        return br.readLine() + br.readLine(); 
+    }
+}
+```
+如果现在需要读取三行，最后一行呢？会造成太多代码冗余了！但是java8后你可以这样：
+1. 定义一个函数式接口
+```java
+@FunctionalInterface 
+public interface BufferedReaderProcessor { 
+    String process(BufferedReader b) throws IOException; 
+}
+```
+2. 定义读取文件的方法
+```java
+public static String processFile(BufferedReaderProcessor p) throws IOException { 
+ try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
+    return p.process(br);
+ }}
+```
+3. 行为参数化-传递lamdba行为表达式
+```java
+//处理一行：
+String oneLine = processFile((BufferedReader br) -> br.readLine()); 
+//处理两行：
+String twoLines = processFile((BufferedReader br) -> br.readLine() + br.readLine());
+```
+
+### 常见的函数式接口
+每次都需要自己写函数式接口，太烦了怎么办？Java 8的库设计师帮你在java.util.function包中引入了几个新的函数式接口。我们接下
+来会介绍Predicate、Consumer和Function，更完整的列表可见本节[结尾处的表](#函数式接口表格)
+
+#### Predicate
+>Predicate<T>接口定义了一个名叫test的抽象方法，它接受泛型T对象，并返回一个boolean。
+
+以下是源码的一部分：
+```java
+@FunctionalInterface 
+public interface Predicate<T>{ 
+    boolean test(T t); 
+} 
+
+// filter源码部分
+public static <T> List<T> filter(List<T> list, Predicate<T> p) { 
+    List<T> results = new ArrayList<>(); 
+    for(T s: list){ 
+        if(p.test(s)){ 
+            results.add(s); 
+        } 
+    } 
+ return results; 
+} 
+
+// 实际使用场景-1
+Predicate<String> nonEmptyStringPredicate = (String s) -> !s.isEmpty(); 
+List<String> nonEmpty = filter(listOfStrings, nonEmptyStringPredicate);
+// 实际使用场景-2
+List<String> nonEmpty = filter(listOfStrings, (String s) -> !s.isEmpty());
+```
+
+#### Consumer
+>Consumer<T>定义了一个名叫accept的抽象方法，它接受泛型T的对象，没有返回（void）。你如果需要访问类型T的对象，并对其执行某些操作，就可以使用这个接口.
+
+```java
+@FunctionalInterface 
+public interface Consumer<T>{ 
+  void accept(T t); 
+} 
+
+public static <T> void forEach(List<T> list, Consumer<T> c){ 
+     for(T i: list){ 
+         c.accept(i); 
+    }
+} 
+
+// 实际使用--lambda表达式即为Consumer函数式接口参数
+forEach(
+    Arrays.asList(1,2,3,4,5), 
+    (Integer i) -> System.out.println(i) 
+ );
+```
+
+#### Function
+>Function<T, R>接口定义了一个叫作apply的方法，它接受一个泛型T的对象，并返回一个泛型R的对象
+
+```java
+@FunctionalInterface 
+public interface Function<T, R>{ 
+    R apply(T t); 
+} 
+public static <T, R> List<R> map(List<T> list, Function<T, R> f) { 
+    List<R> result = new ArrayList<>(); 
+    for(T s: list){ 
+        result.add(f.apply(s)); 
+    } 
+ return result; 
+} 
+
+// 这里 (String s)相当于T-String  s.length()相当于 R --int
+List<Integer> l = map(
+        Arrays.asList("lambdas","in","action"), 
+        (String s) -> s.length() 
+ );
+```
+
+**原始类型特化**
+我们介绍了三个泛型函数式接口：Predicate<T>、Consumer<T>和Function<T,R>。还有些函数式接口专为某些类型而设计。
+
+>如果基础类型也使用这些函数式接口，比如Predicate<Integer>通过自动拆箱装箱是可以实现的，但这在性能方面是要̶出代价的。装箱的本质就是把原来的原始类型包装起来，并保存在堆里。因此，装箱后值需要更多的内存，并需要额外的内存搜索来获取被包装的原始值。
+
+Java 8为我们前面所说的函数式接口带来了一个专门的版本，以便在输入和输出都是原始类型时避免自动装箱的操作。
+大部分函数式接口如下表：
+#### 函数式接口表格
+![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830163537.png)
+![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830163644.png)
