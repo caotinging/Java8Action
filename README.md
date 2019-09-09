@@ -18,6 +18,7 @@
         - [Consumer](#Consumer)
         - [Function](#Function)
         - [函数式接口表格](#函数式接口表格)
+    - [类型检查推断](#类型检查推断)
 
 ## 为什么要关心java8
 ### java8的主要变化
@@ -61,21 +62,21 @@ Java 8的第一个新功能是方法引用。
 
 比方说，你想要筛选一个目录中的所有隐藏文件。你需要编写一个方法，然后给它一个File，它就会告诉你文件是不是隐藏的。我们可以把它看作一个函数，接受一个File，返回一个布尔值。但要用它做筛选，你需要把它包在一个FileFilter对象里，然后传递给File.listFiles
 方法，如下所示：
-```java
+```
 File[] hiddenFiles = new File(".").listFiles(new FileFilter() { 
  public boolean accept(File file) { 
     return file.isHidden(); 
  }});
 ```
 真够啰嗦的，如今在Java 8里，你可以把代码重写成这个样子：
-```java
+```
 File[] hiddenFiles = new File(".").listFiles(File::isHidden);
 ```
 你已经有了函数isHidden，因此只需用Java8的**方法引用::语法**（即“把这个方法作为值”）将其传给listFiles方法；请注意，我们也开始用函数代表方法了。
 
 好处是代码现在读起来更接近问题的陈述了。方法不再是二等值了。与用对象引用传递对象类似（对象引用是用new创建的），在Java 8里写下File::isHidden的时候，你就创建了一个方法引用，你同样可以传递它
 
-#### Lambda——匿名函数
+#### lambda-匿名函数
 除了允许（命名）函数成为一等值外，Java 8还体现了更广义的将函数作为值的思想，包括Lambda(匿名函数）
 
 > 使用这些概念的程序为函数式编程风格，**这句话的意思是“编写把函数作为一等值来传递的程序”。**
@@ -85,7 +86,7 @@ File[] hiddenFiles = new File(".").listFiles(File::isHidden);
 [回顶部](#目录)
 ### 流
 几乎每个Java应用都会制造和处理集合。但集合用起来并不总是那么理想。比方说，你需要从一个列表中筛选金额较高的交易，然后按货币分组。你需要写一大堆套路化的代码来实现这个数据处理命令，如下所示：
-```java
+```
 Map<Currency, List<Transaction>> transactionsByCurrencies = new HashMap<>(); 
 for (Transaction transaction : transactions) { 
     if(transaction.getPrice() > 1000){ 
@@ -100,7 +101,7 @@ for (Transaction transaction : transactions) {
 }
 ```
 此外，我们很难一眼看出来这些代码是做什么的，因为有好几个嵌套的控制流指令。有了Stream API，你现在可以这样解决这个问题了：
-```java
+```
 import static java.util.stream.Collectors.toList; 
 Map<Currency, List<Transaction>> transactionsByCurrencies = 
     transactions.stream() 
@@ -126,14 +127,14 @@ Java 8用Stream API（java.util.stream）解决了这两个问题：**集合处�
 第二个原因是，这类操作常常可以并行化。在两个CPU上筛选列表，可以让一个CPU处理列表的前一半，第二个CPU处理后一半，这称为分支步骤。CPU随后对各自的半个列表做筛选。最后，一个CPU会把两个结果合并起来（Google搜索这么快就与此紧密相关，当然他们用的CPU远远不止两个了）。CPU并行处理如下图：
 ![cpu并行](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190829181343.png)
 顺序处理：
-```java
+```
 import static java.util.stream.Collectors.toList; 
 List<Apple> heavyApples = inventory.stream()
             .filter((Apple a) -> a.getWeight() > 150) 
             .collect(toList());
 ```
 并行处理：
-```java
+```
 import static java.util.stream.Collectors.toList; 
 List<Apple> heavyApples = inventory.parallelStream()
             .filter((Apple a) -> a.getWeight() > 150) 
@@ -150,7 +151,7 @@ List<Apple> heavyApples = inventory.parallelStream()
 
 ### 默认方法
 Java 8中加入默认方法主要是为了支持库设计师，让他们能够写出更容易改进的接口。这一方法很重要，因为你会在接口中遇到越来越多的默认方法。举个例子吧：
-```java
+```
 List<Apple> heavyApples1 = inventory.stream()
         .filter((Apple a) -> a.getWeight() > 150) 
         .collect(toList()); 
@@ -166,7 +167,7 @@ List<Apple> heavyApples2 = inventory.parallelStream()
 Java 8的解决方法就是打破最后一环——接口如今可以包含实现类没有提供实现的方法签名了！那谁来实现它呢？缺失的方法主体随接口提供了（因此就有了默认实现），而不是由实现类提供。
 
 在Java 8里，你现在可以直接对List调用sort方法。它是用Java8 List接口中如下所示的默认方法实现的，它会调用Collections.sort静态方法：
-```java
+```
 default void sort(Comparator<? super E> c) { 
     Collections.sort(this, c); 
 } 
@@ -178,7 +179,7 @@ default void sort(Comparator<? super E> c) {
 可以把Lambda表᣹式理解为简洁地表示可传递的匿名函数的一种方式：它没有名称，但它有参数列表、函数主体、返回类型，可能还有一个可以抛出的异常列表。
 
 Lambda表达式有三个部分：
-```java
+```
 Comparator<Apple> byWeight = 
     (Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight());
 ```
@@ -191,7 +192,7 @@ Comparator<Apple> byWeight =
 >接口现在还可以有默认方法，哪怕接口定义了很多默认方法，只要这个接口只定义了一个抽象方法。这个就是**函数式接口**。
 
 使用lambda
-```java
+```
 Runnable r1 = () -> System.out.println("Hello World 1");
 public static void process(Runnable r){ 
     r.run(); 
@@ -199,7 +200,7 @@ public static void process(Runnable r){
 process(r1);
 ```
 使用匿名类
-```java
+```
 Runnable r2 = new Runnable(){ 
  public void run(){ 
     System.out.println("Hello World 2"); 
@@ -211,7 +212,7 @@ public static void process(Runnable r){
 process(r2);
 ```
 使用函数式接口+lambda
-```java
+```
 public static void process(Runnable r){ 
  r.run(); 
 } 
@@ -225,7 +226,7 @@ process(() -> System.out.println("Hello World 3"));
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830160355.png)
 
 比如带资源的try语句块，会在结束后释放资源。而核心代码只有 **br.readLine()**
-```java
+```
 public static String processFile() throws IOException { 
     try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
         return br.readLine(); 
@@ -233,7 +234,7 @@ public static String processFile() throws IOException {
 }
 ```
 假如我们下次需要读取文件前两行呢？我们可能需要复制一下上面的方法。如下：
-```java
+```
 public static String processFileTwoLine() throws IOException { 
     try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
         return br.readLine() + br.readLine(); 
@@ -242,21 +243,21 @@ public static String processFileTwoLine() throws IOException {
 ```
 如果现在需要读取三行，最后一行呢？会造成太多代码冗余了！但是java8后你可以这样：
 1. 定义一个函数式接口
-```java
+```
 @FunctionalInterface 
 public interface BufferedReaderProcessor { 
     String process(BufferedReader b) throws IOException; 
 }
 ```
 2. 定义读取文件的方法
-```java
+```
 public static String processFile(BufferedReaderProcessor p) throws IOException { 
  try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
     return p.process(br);
  }}
 ```
 3. 行为参数化-传递lamdba行为表达式
-```java
+```
 //处理一行：
 String oneLine = processFile((BufferedReader br) -> br.readLine()); 
 //处理两行：
@@ -271,7 +272,7 @@ String twoLines = processFile((BufferedReader br) -> br.readLine() + br.readLine
 >Predicate<T>接口定义了一个名叫test的抽象方法，它接受泛型T对象，并返回一个boolean。
 
 以下是源码的一部分：
-```java
+```
 @FunctionalInterface 
 public interface Predicate<T>{ 
     boolean test(T t); 
@@ -298,7 +299,7 @@ List<String> nonEmpty = filter(listOfStrings, (String s) -> !s.isEmpty());
 #### Consumer
 >Consumer<T>定义了一个名叫accept的抽象方法，它接受泛型T的对象，没有返回（void）。你如果需要访问类型T的对象，并对其执行某些操作，就可以使用这个接口.
 
-```java
+```
 @FunctionalInterface 
 public interface Consumer<T>{ 
   void accept(T t); 
@@ -320,7 +321,7 @@ forEach(
 #### Function
 >Function<T, R>接口定义了一个叫作apply的方法，它接受一个泛型T的对象，并返回一个泛型R的对象
 
-```java
+```
 @FunctionalInterface 
 public interface Function<T, R>{ 
     R apply(T t); 
@@ -350,3 +351,64 @@ Java 8为我们前面所说的函数式接口带来了一个专门的版本，�
 #### 函数式接口表格
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830163537.png)
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830163644.png)
+
+### 类型检查推断
+
+> 当我们第一次提到Lambda表达式时，说它可以为函数式接口生成一个实例。然而，Lambda表达式本身并不包含它在实现哪个函数式接口的信息。
+
+#### 类型检查
+
+Lambda的类型是从使用Lambda的上下文推断出来的。上下文（比如，接受它传递的方法的参数，或接受它的值的局部变量）中Lambda表达式需要的类型称为目标类型。让我们通过一个例子，看看当你使用Lambda表达式时背后发生了什么。
+
+![](http://clevercoder.cn/github/image/20190909165121.png)
+
+请注意，如果Lambda表达式抛出一个异常，那么抽象方法所声明的throws语句也必须与之匹配
+
+> **特殊的void匹配规则**
+>
+> 如果一个Lambda的主体是一个表达式，就和一个返回void的函数式接口兼容。（当然参数列表必须兼容）
+>
+> 例如，以下两行都是合法的，尽管List的add方法返回了一个boolean，而不是函数Consumer上下文（T -> void）所要求的void：
+```
+//Predicate返回了一个boolean 
+Predicate<String> p = s -> list.add(s); 
+//Consumer返回了一个void 
+Consumer<String> b = s -> list.add(s);
+```
+
+#### 类型推断
+Java编译器会像下面这样推断Lambda的参数类型：
+```
+// 参数a没有显示说明类型
+List<Apple> greenApples = filter(inventory, a -> "green".equals(a.getColor()));
+```
+Lambda表达式有多个参数，代码可读性的好处就更为明显。例如，你可以这样来创建一个Comparator对象：
+```
+// 没有类型推断
+Comparator<Apple> c = (Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight());
+// 有类型推断
+Comparator<Apple> c = (a1, a2) -> a1.getWeight().compareTo(a2.getWeight());
+```
+有时候显式写出类型更易读，有时候去掉它们更易读。没有什么法则说哪种更好；对于如何让代码更易读，程序员必须做出自己的选择。
+
+#### 使用局部变量
+我们迄今为止所介绍的所有Lambda表达式都只用到了其主体里面的参数。但Lambda表达式也允许使用自由变量（不是参数，而是在外层作用域中定义的变量），就像匿名类一样。 它们被称作捕获Lambda
+
+下面的Lambda捕获了portNumber变量：
+```
+int portNumber = 1337; 
+Runnable r = () -> System.out.println(portNumber);
+```
+
+尽管如此，还有一点点小麻烦：关于能对这些局部变量做什么有一些限制。Lambda可以没有限制地捕获（也就是在其主体中引用）实例变量和静态变量。但是局部变量必须显式声明为final，或事实上是final。换句话说，Lambda表达式只能捕获局部变量一次。（注：捕获实例变量可以被看作捕获最终局部变量this。） 例如，下面的代码无法编译，因为portNumber变量被赋值两次：
+
+```
+int portNumber = 1337; 
+Runnable r = () -> System.out.println(portNumber);
+portNumber = 31337;
+// 错误的，因为portNumber被赋值两次，lambda捕获的局部变量必须是显示final或事实上就是final（即只被赋值一次的）
+```
+
+> **为什么这样限制**
+>
+> 实例变量不需要是final，而局部变量需要是final。最主要的原因是因为：实例变量是存储在堆上的，而局部变量是存储在方法栈上的。而当lambda函数访问局部变量时，该变量可能已经被回收，因此只会捕获一次即只会复制一次局部变量的副本，访问时即访问副本。因此该变量必须保证是final，副本才有效。
