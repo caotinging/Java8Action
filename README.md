@@ -412,3 +412,92 @@ portNumber = 31337;
 > **为什么这样限制**
 >
 > 实例变量不需要是final，而局部变量需要是final。最主要的原因是因为：实例变量是存储在堆上的，而局部变量是存储在方法栈上的。而当lambda函数访问局部变量时，该变量可能已经被回收，因此只会捕获一次即只会复制一次局部变量的副本，访问时即访问副本。因此该变量必须保证是final，副本才有效。
+
+#### 方法引用
+
+方法引用其实就是为了使代码可读性更高，例如：
+```
+// 直接使用lambda
+inventory.sort((Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight()));
+// 使用方法引用
+inventory.sort(comparing(Apple::getWeight));
+```
+>方法引用可以被看作仅仅调用特定方法的Lambda的一种快捷写法。它的基本思想是，如果一个Lambda代表的只是“直接调用这个方法”，比如```(Apple a) -> a.getWeight()```，那最好还是方法引用来调用它：```Apple::getWeight```
+
+当你需要使用方法引用时，目标引用放在分隔符::前，方法的名称放在后面。```Apple::getWight``` 即Apple是目标引用
+
+```
+() -> Thread.currentThread().dumpStack()  ==>    Thread.currentThread()::dumpStack
+(str, i) -> str.substring(i)              ==>    String::substring
+```
+
+**如何构建方法引用**
+
+-  指向静态方法的方法引用
+```
+(agrs) -> ClassName.staticMethod(args)    ==>    ClassName::staticMethod
+```
+
+- 指向任意类型实例方法的引用
+```
+(exp,args) -> exp.instanceMethod(args)    ==>    ExpClassName::instanceMethod
+```
+
+- 指向现有对象的实例方法的方法引用
+```
+// exp是已有变量
+(args) -> exp.instanceMethod(args)        ==>    exp::insatanceMethod
+```
+
+> 编译器会进行一种与Lambda表达式类似的类型检查过程，来确定对于给定的函数式接口，这个**方法引用**是否有效：**方法引用的签名必须和上下文类型匹配**。
+
+#### 构造函数引用
+
+- 无参构造函数引用 即 () -> T
+```
+Supplier<Apple> = Apple:new
+```
+
+- 一个参数构造函数引用 即 (P) -> T
+```
+Function<Integer, Apple> = Apple::new
+```
+
+- 两个参数的构造函数引用 即 (P1, P2) -> T
+```
+BiFunction<Integer, Integer, Apple> = Apple::new
+```
+
+- 多个构造函数的引用也一样，只是需要自定义函数式接口。接口上下文符合 (P1,P2,P3...) -> T 即可
+
+一个栗子：
+```
+List<Integer> weights = Arrays.asList(7, 3, 4, 10); 
+// 调用map方法获得一组apple实例的集合
+List<Apple> apples = map(weights, Apple::new); 
+// 将构造函数引用传递给map方法
+public static List<Apple> map(List<Integer> list, Function<Integer, Apple> f){ 
+    List<Apple> result = new ArrayList<>(); 
+    for(Integer e: list){
+        result.add(f.apply(e)); 
+    }
+    return result; 
+}
+```
+
+不将构造函数实例化却能够引用它，这个功能有一些有趣的应用。比如下面的giveMeFruit方法可以获得各种各样不同重量的水果实例：
+```
+// 创建一个Map 字符串映射相应的构造函数引用
+static Map<String, Function<Integer, Fruit>> map = new HashMap<>(); 
+static {
+    // apple 匹配Apple的构造函数引用
+    map.put("apple", Apple::new); 
+    map.put("orange", Orange::new); 
+    // etc... 
+} 
+// 这个方法可以通过输入的 fruit名字 以及构造函数需要的参数，获得相应的实例。
+public static Fruit giveMeFruit(String fruit, Integer weight){ 
+    return map.get(fruit.toLowerCase()) 
+              .apply(weight); 
+}
+```
