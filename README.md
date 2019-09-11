@@ -501,3 +501,76 @@ public static Fruit giveMeFruit(String fruit, Integer weight){
               .apply(weight); 
 }
 ```
+
+#### lambda和方法引用实战
+
+用不同的排序策略给一个Apple列表排序，并需要展示如何把一个原始粗暴的解决方法一步步优化。
+
+> Java 8的API已经为你提供了一个List可用的sort方法，你不用自己去实现它。那么最困难的部分已经搞定了
+
+但是，如何把排序策略传递给sort方法呢？你看，sort方法的签名是这样的：```void sort(Comparator<? super E> c)```。而Comparator是函数式接口，可以传递方法。因此我们可以认为sort的行为被参数化了。传递给它的排序策略不同，其行为也会不同。
+
+- 首先我们的第一个解决办法可能是：
+```
+inventory.sort(new Comparator<Apple>() { 
+    public int compare(Apple a1, Apple a2){ 
+        return a1.getWeight().compareTo(a2.getWeight()); 
+    } 
+});
+```
+> 匿名内部类的方法依旧很啰嗦，因为当我们需要一种新的排序策略时，我们可能需要把上面的代码拷贝一份，但是却只需要改动 ```return a1.getWeight().compareTo(a2.getWeight()); ``` 这部分核心代码。策略一多便啰嗦极了。
+
+- ֵ用 Lambda 表达式
+
+> 上面的例子可以看成是一个接收签名为 (T1,T2) -> int 的方法。
+
+```
+inventory.sort((Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight()));
+```
+
+看起来好多了，因为lambda的类型推断，我们甚至可以1简化成下面这样：
+```
+inventory.sort((a1, a2) -> a1.getWeight().compareTo(a2.getWeight()));
+```
+
+> 代码还能更简洁吗？Comparator具有一个叫作comparing的静态辅助方法，
+  它可以接受一个Function来提取Comparable键值，并生成一个Comparator对象（我们会在第
+  后面解释为什么接口可以有静态方法）。
+  
+comparing的静态辅助方法源码如下：
+```
+public static <T, U extends Comparable<? super U>> Comparator<T> comparing(
+            Function<? super T, ? extends U> keyExtractor)
+{
+    Objects.requireNonNull(keyExtractor);
+    return (Comparator<T> & Serializable)
+        (c1, c2) -> keyExtractor.apply(c1).compareTo(keyExtractor.apply(c2));
+}
+```
+
+它可以像下面这样用：
+```
+Comparator<Apple> c = Comparator.comparing((a) -> a.getWeight());
+```
+
+现在你可以把代码再改得紧凑一点了：
+```
+inventory.sort(Comparator.comparing((a) -> a.getWeight());
+```
+
+- 方法引用
+
+> 前面解释过，方法引用就是替代那些转发参数的Lambda表达式的语法糖。你可以用方法引
+  用让你的代码更简洁
+
+```
+inventory.sort(Comparator.comparing(Apple::getWeight);
+```
+
+这就是你的最终解决方案！这比Java 8之前的代码好在哪儿呢？它比较短；它的意
+思也很明显，并且代码读起来和问题描述差不多：“对库存进行排序，比较苹果的重量。”
+
+> **注意：** 
+> - 这个例子中lambda表达式```Apple::getWeight``` 的返回值是int 因此可以采用 comparingInt方法提高内存利用率。
+> - lambda表达式的返回值必须实现了Comparable接口，为可比较的元素，才能进行集合排序操作。
+
