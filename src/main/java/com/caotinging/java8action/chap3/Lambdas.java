@@ -39,6 +39,4 @@ public class Lambdas {
         System.out.println(nonEmpty);
     }
 
-
-
 }

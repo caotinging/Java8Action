@@ -1,8 +1,11 @@
 package com.caotinging.java8action.chap2;
 
 import com.caotinging.java8action.chap1.Apple;
+import com.caotinging.java8action.chap3.Lambdas;
 
 import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 /**
  * @program: Java8Action
@@ -17,6 +20,8 @@ public class AppleFormatter {
         prettyPrintApple(Apple.getApples(), apple -> "An apple is " + apple.getWeight());
         // 输出苹果的颜色
         prettyPrintApple(Apple.getApples(), apple -> "An apple is " + apple.getColor());
+
+
     }
 
     public static void prettyPrintApple(List<Apple> apples, AppleAbstactFormatter formatter) {
