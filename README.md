@@ -607,7 +607,7 @@ inventory.sort(comparing(Apple::getWeight)
          .thenComparing(Apple::getCountry));
 ```
 
-- 谓词复合
+#### 谓词复合
 
 > 谓词接口包括三个方法：negate、and和or，你可以重用已有的Predicate来创建更复
   杂的谓词。比如，你可以使用negate方法来返回一个Predicate的非，比如苹果不是红的：
@@ -633,7 +633,7 @@ Predicate<Apple> redAndHeavyOrGreen = redApple.and((a) -> a.getWeight() > 150)
 请注意，and和or方法是按照在表达式链中的位置，从左向右确定优
 先级的。因此，a.or(b).and(c)可以看作(a || b) && c。
 
-- 函数复合
+#### 函数复合
 
 最后，你还可以把Function接口所代表的Lambda表达式复合起来。Function接口为此配
 了andThen和compose两个默认方法
@@ -687,3 +687,46 @@ public class Letter{
         = addHeader.andThen(Letter::checkSpelling) 
                    .andThen(Letter::addFooter);
   ```
+  
+### 数学中的类似思想*
+
+> 这里和java没有直接关系，不感兴趣的话可以直接跳过
+
+如下图求阴影部分的面积：
+
+![](http://clevercoder.cn/github/image/20190912154408.png)
+
+在这个例子里，函数f是一条直线，因此你很容易通过求梯形面积的方法来算出
+面积：
+    ```1/2 × ((3 + 10) + (7 + 10)) × (7 – 3) = 60```
+    
+那么这在Java里面如何表达呢？你需要写一个求面积的方法，比如说叫integrate，它接受三个参数：一个是f，
+还有上下限（这里是3.0和7.0）。于是写在Java里就是下面这个样子，函数f是被传递进去的：
+
+```integrate(f, 3, 7) ```
+
+请注意，你不能简单地写：
+
+```integrate(x + 10, 3, 7) ```
+
+> 原因有： 第一，x的作用域不清楚；第二，这将会把x + 10的值而不是函数f传给integrate。
+>
+> 数学上dx的作用就是说“以x为自变量、结果是x+10的那个函数。”
+
+Java 8的Lambda表达式```(double x) -> x + 10 ```就是函数f(x)的天然表达，
+因此你可以写：
+```integrate((double x) -> x + 10, 3, 7)```.或者你可以写```integrate(C::f, 3, 7)```这里C是包含静态方法f的一个类。理念就是把f背后的代码传给integrate方法。
+
+现在你可能在想如何写integrate本身了。我们还假设f是一个线性函数（直线）。你可能
+会写成类似数学的形式：
+```
+public double integrate((double -> double)f, double a, double b) { 
+    return (f(a)+f(b))*(b-a)/2.0 
+}
+```
+在java中看起来应该是这样：
+```
+public double integrate(DoubleFunction<Double> f, double a, double b) { 
+    return (f.apply(a) + f.apply(b)) * (b-a) / 2.0; 
+}
+```
