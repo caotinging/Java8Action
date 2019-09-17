@@ -19,16 +19,16 @@ public class MultiLambda {
         String s = "labda";
         System.out.println(function.apply(s));
     }
-}
 
-class Letter{
-    public static String addHeader(String text){
-        return "From caotinging: " + text;
-    }
-    public static String addFooter(String text){
-        return text + " Kind regards";
-    }
-    public static String checkSpelling(String text){
-        return text.replaceAll("labda", "lambda");
+    public static class Letter{
+        public static String addHeader(String text){
+            return "From caotinging: " + text;
+        }
+        public static String addFooter(String text){
+            return text + " Kind regards";
+        }
+        public static String checkSpelling(String text){
+            return text.replaceAll("labda", "lambda");
+        }
     }
 }
