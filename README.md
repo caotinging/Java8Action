@@ -19,6 +19,17 @@
         - [Function](#Function)
         - [函数式接口表格](#函数式接口表格)
     - [类型检查推断](#类型检查推断)
+        - [类型检查](#类型检查)
+        - [类型推断](#类型推断)
+        - [使用局部变量](#使用局部变量)
+        - [使用方法引用](#使用方法引用)
+        - [构造函数引用](#构造函数引用)
+        - [lambda和方法引用实战](#lambda和方法引用实战)
+    - [复合Lambda表达式](#复合Lambda表达式)
+        - [比较器复合](#比较器复合)
+        - [谓词复合](#谓词复合)
+        - [函数复合](#函数复合)
+    - [数学中的类似思想*](#数学中的类似思想*)
 
 ## 为什么要关心java8
 ### java8的主要变化
@@ -352,6 +363,8 @@ Java 8为我们前面所说的函数式接口带来了一个专门的版本，�
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830163537.png)
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830163644.png)
 
+[回顶部](#目录)
+
 ### 类型检查推断
 
 > 当我们第一次提到Lambda表达式时，说它可以为函数式接口生成一个实例。然而，Lambda表达式本身并不包含它在实现哪个函数式接口的信息。
@@ -413,7 +426,7 @@ portNumber = 31337;
 >
 > 实例变量不需要是final，而局部变量需要是final。最主要的原因是因为：实例变量是存储在堆上的，而局部变量是存储在方法栈上的。而当lambda函数访问局部变量时，该变量可能已经被回收，因此只会捕获一次即只会复制一次局部变量的副本，访问时即访问副本。因此该变量必须保证是final，副本才有效。
 
-#### 方法引用
+#### 使用方法引用
 
 方法引用其实就是为了使代码可读性更高，例如：
 ```
@@ -574,7 +587,9 @@ inventory.sort(Comparator.comparing(Apple::getWeight);
 > - 这个例子中lambda表达式```Apple::getWeight``` 的返回值是int 因此可以采用 comparingInt方法提高内存利用率。
 > - lambda表达式的返回值必须实现了Comparable接口，为可比较的元素，才能进行集合排序操作。
 
-### 复合 Lambda 表达式
+[回顶部](#目录)
+
+### 复合Lambda表达式
 
 Java 8的好几个函数式接口都有为方便而设计的方法。具体而言，许多函数式接口，比如用
 于传递Lambda表达式的Comparator、Function和Predicate都提供了允许你进行复合的方法。
@@ -687,7 +702,9 @@ public class Letter{
         = addHeader.andThen(Letter::checkSpelling) 
                    .andThen(Letter::addFooter);
   ```
-  
+
+[回顶部](#目录)
+
 ### 数学中的类似思想*
 
 > 这里和java没有直接关系，不感兴趣的话可以直接跳过
@@ -730,3 +747,172 @@ public double integrate(DoubleFunction<Double> f, double a, double b) {
     return (f.apply(a) + f.apply(b)) * (b-a) / 2.0; 
 }
 ```
+
+[回顶部](#目录)
+
+## 流
+### 流是什么
+> 流是Java API的新成员，它允许你以声明性方式处理数据集合（通过查询语句来表达，而不
+是临时编写一个实现）。就现在来说，你可以把它们看成遍历数据集的高级迭代器。此外，流还可以透明的并行处理，你无需写任何多线程代码了！
+
+下面两段代码都是用来返回低热量的菜肴名称的，
+并按照卡路里排序，一个是用Java 7写的，另一个是用Java 8的流写的。比较一下。
+
+java7
+```
+// 迭代器筛选卡路里低于400的食物
+List<Dish> lowCaloricDishes = new ArrayList<>(); 
+for(Dish d: menu){ 
+    if(d.getCalories() < 400){ 
+        lowCaloricDishes.add(d); 
+    } 
+} 
+// 进行排序
+Collections.sort(lowCaloricDishes, new Comparator<Dish>() {
+    public int compare(Dish d1, Dish d2){ 
+        return Integer.compare(d1.getCalories(), d2.getCalories()); 
+    } 
+}); 
+// 获取排序后低热量菜肴的名称
+List<String> lowCaloricDishesName = new ArrayList<>(); 
+for(Dish d: lowCaloricDishes){ 
+    lowCaloricDishesName.add(d.getName()); 
+}
+```
+
+>在这段代码中，你用了一个“垃圾变量”lowCaloricDishes。它唯一的作用就是作为一次
+ 性的中间容器。在Java 8中，实现的细节被放在它本该归属的库里了。
+
+java8
+```
+import static java.util.Comparator.comparing; 
+import static java.util.stream.Collectors.toList; 
+
+List<String> lowCaloricDishesName = 
+            menu.stream() 
+                .filter(d -> d.getCalories() < 400) 
+                .sorted(comparing(Dish::getCalories))
+                .map(Dish::getName) 
+                .collect(toList());
+```
+
+> 为了利用多核架构并行执行这段代码，你只需要把stream()换成parallelStream()：
+
+```
+List<String> lowCaloricDishesName = 
+                menu.parallelStream() 
+                    .filter(d -> d.getCalories() < 400) 
+                    .sorted(comparing(Dishes::getCalories)) 
+                    .map(Dish::getName) 
+                    .collect(toList());
+```
+
+你可能会想，在调用parallelStream方法的时候到底发生了什么。用了多少个线程？对性
+能有多大提升？后面会详细讨论这些问题。现在，你可以看出，从软件工程师的角度来看，新
+的方法有几个显而易见的好处。
+
+- 代码是以声明式的方式写的：说明想要完成什么，而不是说明如何实现一个操作（利用循环和if条件等控制流语句）。
+- 轻松应对变化的需求：你很容易再创建一个代码版本，利用
+  Lambda表达式来筛选高卡路里的菜肴，而用不着去复制粘贴代码。
+- 你可以把几个基础操作链接起来，来表达复杂的数据处理流水线（在filter后面接上
+  sorted、map和collect操作），同时保持代码清晰可读。filter的结果
+  被传给了sorted方法，再传给map方法，最后传给collect方法。
+  
+**别浪费太多时间了。一起来拥抱接下来介绍的强大的流吧！**
+
+总结一下，Java 8中的Stream API可以让你写出这样的代码：
+- 声明式——更简洁，更易读
+- 可复合——更灵活
+- 可并行——性能更好
+
+我们会使用这样一个例子：一个menu，它只是一张菜单：
+```
+List<Dish> menu = Arrays.asList( 
+ new Dish("pork", false, 800, Dish.Type.MEAT), 
+ new Dish("beef", false, 700, Dish.Type.MEAT), 
+ new Dish("chicken", false, 400, Dish.Type.MEAT), 
+ new Dish("french fries", true, 530, Dish.Type.OTHER), 
+ new Dish("rice", true, 350, Dish.Type.OTHER), 
+ new Dish("season fruit", true, 120, Dish.Type.OTHER), 
+ new Dish("pizza", true, 550, Dish.Type.OTHER), 
+ new Dish("prawns", false, 300, Dish.Type.FISH), 
+ new Dish("salmon", false, 450, Dish.Type.FISH) );
+```
+Dish类的定义是：
+```
+public class Dish { 
+     private final String name; 
+     private final boolean vegetarian; // 素
+     private final int calories; 
+     private final Type type; 
+     
+     public Dish(String name, boolean vegetarian, int calories, Type type) { 
+         this.name = name; 
+         this.vegetarian = vegetarian; 
+         this.calories = calories; 
+         this.type = type; 
+     } 
+     public String getName() { 
+        return name; 
+     } 
+     public boolean isVegetarian() { 
+        return vegetarian; 
+     } 
+     public int getCalories() { 
+        return calories; 
+     } 
+     public Type getType() { 
+        return type; 
+     } 
+     @Override 
+     public String toString() { 
+        return name; 
+     }
+     public enum Type { MEAT, FISH, OTHER } 
+}
+```
+
+### 流简介
+
+> 简短的定义就是“从支持数据处理操作的源生成的元素序列”。让
+  我们一步步分析这个定义。
+  
+- **元素序列**——就像集合一样，流也提供了一个接口，可以访问特定元素类型的一组有序
+  值。因为集合是数据结构，所以它的主要目的是以特定的时间/空间复杂度存储和访问元
+  素（如ArrayList 与 LinkedList）。但流的目的在于表达计算，比如你前面见到的
+  filter、sorted和map。集合讲的是数据，流讲的是计算。我们会在后面详细解
+  释这个思想。
+- **源**——流会使用一个提供数据的源，如集合、数组或输入/输出资源。 请注意，从有序集
+  合生成流时会保留原有的顺序。由列表生成的流，其元素顺序与列表一致。
+- **数据处理操作**——流的数据处理功能支持类似于数据库的操作，以及函数式编程语言中
+  的常用操作，如filter、map、reduce、find、match、sort等。流操作可以顺序执
+  行，也可并行执行。
+  
+此外，流操作有两个重要的特点。
+- **流水线**——很多流操作本身会返回一个流，这样多个操作就可以链接起来，形成一个大
+  的流水线。这让一些优化成为可能，如延迟和短路。流水线的操作可以
+  看作对数据源进行数据库式查询。
+- **内部迭代**——与使用迭代器显式迭代的集合不同，流的迭代操作是在背后进行的。
+
+让我们来看一段能够体现所有这些概念的代码：
+```
+import static java.util.stream.Collectors.toList; 
+List<String> threeHighCaloricDishNames = 
+                    menu.stream()  // 从菜单集合中获取流-建立流水线
+                        .filter(d -> d.getCalories() > 300) // 首先筛选卡路里高于300的食物
+                        .map(Dish::getName) // 获取菜名
+                        .limit(3) // 截取前三个
+                        .collect(toList()); // 组合成新的列表
+System.out.println(threeHighCaloricDishNames);
+```
+
+>在本例中，我们先是对menu调用stream方法，由菜单得到一个流。数据源是菜单列表，
+它给流提供一个元素序列。接下来，对流应用一系列数据处理操作：filter、map、limit
+ 和collect。除了collect之外，所有这些操作都会返回另一个流，这样它们就可以接成一条流水线，于是就可以看作对源的一个查询。最后，collect操作开始处理流水线，并返回结果（它
+ 和别的操作不一样，因为它返回的不是流，在这里是一个List）。在调用collect之前，没有任
+ 何结果产生，实际上根本就没有从menu里选择元素。你可以这么理解：链中的方法调用都在排
+ 队等待，直到调用collect。
+
+过程如下所示：
+
+![](http://clevercoder.cn/github/image/20190918182851.png)
