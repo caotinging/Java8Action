@@ -12,7 +12,7 @@
     - [默认方法](#默认方法)
  - [Lambda表达式](#Lambda表达式)
     - [函数式接口](#函数式接口)
-    - [付诸实践：环绕执行模式](#付诸实践：环绕执行模式)
+    - [环绕执行模式](#环绕执行模式)
     - [常见的函数式接口](#常见的函数式接口)
         - [Predicate](#Predicate)
         - [Consumer](#Consumer)
@@ -29,7 +29,17 @@
         - [比较器复合](#比较器复合)
         - [谓词复合](#谓词复合)
         - [函数复合](#函数复合)
-    - [数学中的类似思想*](#数学中的类似思想*)
+    - [数学中的类似思想](#数学中的类似思想)
+ - [流](#流)
+    - [流是什么](#流是什么)
+    - [流简介](#流简介)
+    - [流与集合](#流与集合)
+        - [只能遍历一次](#只能遍历一次)
+        - [内部迭代和外部迭代](#内部迭代和外部迭代)
+    - [流操作](#流操作)
+        - [中间操作](#中间操作)
+        - [终端操作](#终端操作)
+        
 
 ## 为什么要关心java8
 ### java8的主要变化
@@ -231,7 +241,7 @@ process(() -> System.out.println("Hello World 3"));
 ```
 >lambda表达式可以传递给函数式接口也可以传递给Function<T,K>等函数变量
 
-### 付诸实践：环绕执行模式
+### 环绕执行模式
 下图很好的展示了环绕执行模式的特点：
 
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830160355.png)
@@ -705,7 +715,7 @@ public class Letter{
 
 [回顶部](#目录)
 
-### 数学中的类似思想*
+### 数学中的类似思想
 
 > 这里和java没有直接关系，不感兴趣的话可以直接跳过
 
@@ -871,6 +881,7 @@ public class Dish {
      public enum Type { MEAT, FISH, OTHER } 
 }
 ```
+[回顶部](#目录)
 
 ### 流简介
 
@@ -916,6 +927,8 @@ System.out.println(threeHighCaloricDishNames);
 过程如下所示：
 
 ![](http://clevercoder.cn/github/image/20190918182851.png)
+
+[回顶部](#目录)
 
 ### 流与集合
 
@@ -1029,6 +1042,7 @@ List<String> names = menu.stream()
   本上就要自己管理所有的并行问题了（自己管理实际上意味着“某个良辰吉日我们会把它并行化”
   或“开始了关于任务和synchronized的漫长而艰苦的斗争”）
   
+[回顶部](#目录)
 
 ### 流操作
 
@@ -1104,8 +1118,6 @@ mapping chicken
 menu.stream().forEach(System.out::println);
 ```
 
-#### 使用流
-
 总而言之，流的使用一般包括三件事：
 
 1. 一个数据源（如集合）来执行一个查询；
@@ -1115,3 +1127,12 @@ menu.stream().forEach(System.out::println);
 下面列出了已经遇到的流操作，不涵盖全部
 
 ![](http://clevercoder.cn/github/image/20190924180659.png)
+
+> 以上都是书中核心部分，本人抱着实践出真知的态度亲自试了一下stream和for循环的性能比较，就在源码中的chap4中的streamBasic、结果大跌眼镜。在难以置信的情况下
+查阅了相关资料，发现了这个：[Follow-up: How fast are the Java 8 Streams?](https://jaxenter.com/follow-up-how-fast-are-the-java-8-streams-122522.html)
+这个：[Java 8 Stream的性能到底如何？](https://segmentfault.com/a/1190000004171551) 这个：[Java performance tutorial – How fast are the Java 8 streams?](https://jaxenter.com/java-performance-tutorial-how-fast-are-the-java-8-streams-118830.html)
+哎！
+
+[回顶部](#目录)
+
+## 使用流
