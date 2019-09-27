@@ -1128,7 +1128,7 @@ menu.stream().forEach(System.out::println);
 
 ![](http://clevercoder.cn/github/image/20190924180659.png)
 
-> 以上都是书中核心部分，本人抱着实践出真知的态度亲自试了一下stream和for循环的性能比较，就在源码中的chap4中的streamBasic、结果大跌眼镜。在难以置信的情况下
+> 以上都是书中所述，本人抱着实践出真知的态度亲自试了一下stream和for循环的性能比较，就在源码中的chap4中的[streamBasic](https://github.com/caotinging/Java8Action/blob/master/src/main/java/com/caotinging/java8action/chap4/StreamBasic.java)、结果大跌眼镜。在难以置信的情况下
 查阅了相关资料，发现了这个：[Follow-up: How fast are the Java 8 Streams?](https://jaxenter.com/follow-up-how-fast-are-the-java-8-streams-122522.html)
 这个：[Java 8 Stream的性能到底如何？](https://segmentfault.com/a/1190000004171551) 这个：[Java performance tutorial – How fast are the Java 8 streams?](https://jaxenter.com/java-performance-tutorial-how-fast-are-the-java-8-streams-118830.html)
 哎！
@@ -1136,3 +1136,21 @@ menu.stream().forEach(System.out::println);
 [回顶部](#目录)
 
 ## 使用流
+### 筛选和切片
+#### 用谓词筛选
+
+Streams接口支持filter方法（你现在应该很熟悉了）。该操作会接受一个谓词（一个返回
+boolean的函数）作为参数，并返回一个包括所有符合谓词的元素的流。
+
+```
+// 筛选所有素菜
+List<Dish> vegetarianMenu = menu.stream() 
+                .filter(Dish::isVegetarian) 
+                .collect(toList());
+```
+
+#### 筛选各异的元素
+
+流还支持一个叫作distinct的方法，它会返回一个元素各异（即无重复的，根据流所生成元素的
+hashCode和equals方法实现）的流。例如，以下代码会筛选出列表中所有的偶数，并确保没有
+重复。
