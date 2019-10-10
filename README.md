@@ -1154,3 +1154,40 @@ List<Dish> vegetarianMenu = menu.stream()
 流还支持一个叫作distinct的方法，它会返回一个元素各异（即无重复的，根据流所生成元素的
 hashCode和equals方法实现）的流。例如，以下代码会筛选出列表中所有的偶数，并确保没有
 重复。
+
+```
+List<Integer> numbers = Arrays.asList(1, 2, 1, 3, 3, 2, 4); 
+numbers.stream() 
+       .filter(i -> i % 2 == 0) 
+       .distinct() 
+       .forEach(System.out::println);
+```
+
+#### 截短流
+
+流支持limit(n)方法，该方法会返回一个不超过给定长度的流。所需的长度作为参数传递
+给limit。如果流是有序的，则最多会返回前n个元素。比如，你可以建立一个List，选出能量
+超过300卡路里的头三道菜：
+
+```
+List<Dish> dishes = menu.stream() 
+                        .filter(d -> d.getCalories() > 300) 
+                        .limit(3) 
+                        .collect(toList());
+```
+
+#### 跳过流
+
+流还支持skip(n)方法，返回一个扔掉了前n个元素的流。如果流中元素不足n个，则返回一
+个空流。请注意，limit(n)和skip(n)是互补的！例如，下面的代码将跳过超过300卡路里的头
+两道菜，并返回剩下的。
+
+```
+List<Dish> dishes = menu.stream() 
+                        .filter(d -> d.getCalories() > 300) 
+                        .skip(2) 
+                        .collect(toList());
+```
+
+### 映射
+
