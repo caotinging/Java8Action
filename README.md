@@ -1191,3 +1191,49 @@ List<Dish> dishes = menu.stream()
 
 ### 映射
 
+> 一个非常常见的数据处理套路就是从某些对象中选择信息。比如在SQL里，你可以从表中选
+  择一列。Stream API也通过map和flatMap方法提供了类似的工具
+  
+#### 对流中每一个元素应用函数
+
+流支持map方法，这个方法接收一个函数作为参数，这个函数会被应用到流中的每个元素，并将其映
+成一个新的元素，（创建新版本而不是修改原始流）例如，下面的代码把方法引用Dish::getName传给了map方法，
+来提取流中菜肴的名称：
+
+```
+List<String> dishNames = menu.stream() 
+                             .map(Dish::getName) 
+                             .collect(toList());
+```
+
+> 因为getName方法返回一个String，所以map方法输出的流的类型就是Stream<String>。
+
+让我们看一个稍微不同的例子来加深一下对map的理解。给定一个单词列表，你想要返回另
+一个列表，显示每个单词中有几个字母。怎么做呢？
+
+你需要对列表中的每个元素应用一个函数。应用的函数应该接受一个单词，并返回其长度。你可以像下面
+这样，给map传递一个方法引用String::length来解决这个问题：
+
+```
+List<String> words = Arrays.asList("Java 8", "Lambdas", "In", "Action"); 
+List<Integer> wordLengths = words.stream() 
+                                 .map(String::length) 
+                                 .collect(toList());
+```
+
+现在让我们回到提取菜名的例子。如果你要找出每道菜的名称有多长，怎么做？你可以像下
+面这样，再链接上一个map：
+
+```
+List<Integer> dishNameLengths = menu.stream() 
+                                    .map(Dish::getName) 
+                                    .map(String::length) 
+                                    .collect(toList());
+```
+
+#### 流的扁平化
+
+你已经看到如何使用map方法返回列表中每个单词的长度了。让我们扩展一下：对于一张单
+词表，如何返回一张列表，列出里面各不相同的字符呢？例如，给定单词列表
+["Hello","World"]，你想要返回列表["H","e","l", "o","W","r","d"]
+

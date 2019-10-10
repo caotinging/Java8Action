@@ -37,7 +37,7 @@ public class Dish {
 
     @Override
     public String toString() {
-        return name;
+        return "[name="+name+",calories="+calories+"]";
     }
 
     public static final List<Dish> menu =
