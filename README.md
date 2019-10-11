@@ -1237,3 +1237,53 @@ List<Integer> dishNameLengths = menu.stream()
 词表，如何返回一张列表，列出里面各不相同的字符呢？例如，给定单词列表
 ["Hello","World"]，你想要返回列表["H","e","l", "o","W","r","d"]
 
+你可能会认为这很容易，你可以把每个单词映射成一张字符表，然后调用distinct来过滤
+重复的字符。第一个版本可能是这样的：
+
+```
+words.stream() 
+ .map(word -> word.split("")) 
+ .distinct() 
+ .collect(toList());
+```
+
+但是你会发现这根本不起作用，这个方法的问题在于，传递给map方法的Lambda（word -> word.split("")）为每个单词返回了一个String[]（String
+列表）。因此，map返回的流实际上是Stream<String[]>类型的。你真正想要的是用
+Stream<String>来表示一个字符流。
+
+- 尝试使ֵ用map和Arrays.stream()
+
+首先，你需要一个字符流，而不是数组流。有一个叫作Arrays.stream()的方法可以接受
+一个数组并产生一个流，例如:
+```
+String[] arrayOfWords = {"Goodbye", "World"}; 
+Stream<String> streamOfwords = Arrays.stream(arrayOfWords);
+```
+
+把它用在前面的那个流水线里，看看会发生什么：
+```
+words.stream() 
+ .map(word -> word.split("")) 
+ .map(Arrays::stream)
+ .distinct() 
+ .collect(toList());
+```
+当前的解决方案仍然搞不定！这是因为，你现在得到的是一个流的列表（更准确地说是
+Stream<String>类型的List）！的确，你先是把每个单词转换成一个字母数组，然后把每个数组变成了一
+个独立的流。
+
+- 用flatMap
+
+使用flatMap方法的效果是，各个数组并不是分别映射成一个流，而映射成流的内容。所
+有使用map(Arrays::stream)时生成的单个流都被合并起来，即扁平化为一个流。
+
+```
+List<String> uniqueCharacters = words.stream() 
+                                    .map(w -> w.split("")) 
+                                    .flatMap(Arrays::stream) 
+                                    .distinct() 
+                                    .collect(Collectors.toList());
+```
+
+> flatmap方法让你把一个流中的每个值都换成另一个流，然后把所有的流连接
+  起来成为一个流。
