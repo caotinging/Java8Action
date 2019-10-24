@@ -1188,6 +1188,7 @@ List<Dish> dishes = menu.stream()
                         .skip(2) 
                         .collect(toList());
 ```
+[回顶部](#目录)
 
 ### 映射
 
@@ -1287,3 +1288,49 @@ List<String> uniqueCharacters = words.stream()
 
 > flatmap方法让你把一个流中的每个值都换成另一个流，然后把所有的流连接
   起来成为一个流。
+  
+[回顶部](#目录)
+
+### 查找和匹配
+
+> 另一个常见的数据处理操作是看看数据集中的某些元素是否匹配一个给定的属性，
+Stream API通过allMatch、anyMatch、noneMatch、findFirst和findAny方法提供了这样的工具。
+
+#### 检查谓词是否至少匹配一个元素
+
+> 标题中的谓词指的是函数式接口：Predicate<T>  T --> boolean
+
+anyMatch方法可以解决 “流中是否有一个元素能匹配给定的谓词”。比如，你可以用它来看看菜单里面是否有素食可选择：
+
+```
+if(menu.stream().anyMatch(Dish::isVegetarian)){ 
+    System.out.println("The menu is (somewhat) vegetarian friendly!!"); 
+}
+```
+
+anyMatch方法返回一个boolean，因此是一个终端操作
+
+#### 检查谓词是否匹配所有元素
+
+**allMatch**
+
+allMatch方法会检查流中的元素是否都能匹配给定的谓词。比如，你可以用它来看看菜单是否有利健康（即所有菜品的热量都低于1000卡路里）：
+
+```
+boolean isHealthy = menu.stream() 
+    .allMatch(d -> d.getCalories() < 1000);
+```
+
+**noneMatch**
+
+noneMatch它可以确保流中没有任何元素与给定的谓词匹配。比如，你可以用noneMatch重写前面的例子：
+
+```
+boolean isHealthy = menu.stream() 
+        .noneMatch(d -> d.getCalories() >= 1000);
+```
+
+> anyMatch、allMatch和noneMatch这三个操作都用到了我们所谓的短路，这就是大家熟悉
+  的Java中&&和||运算符短路在流中的版本
+  
+#### 查找元素
