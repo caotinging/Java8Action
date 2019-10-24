@@ -19,7 +19,22 @@ public class StreamFlatMap {
 
 
     public static void main(String[] args) {
-        test1();
+        test4();
+    }
+
+    /**
+     * 扩展test3的例子
+     * 如何只返回总和能被3整除的数对呢？例如(2, 4)和(3, 3)是可以的。
+     */
+    private static void test4() {
+        List<Integer> intArr1 = Arrays.asList(1,2,3);
+        List<Integer> intArr2 = Arrays.asList(3,4);
+
+        List<int[]> result = intArr1.stream()
+                .flatMap(i -> intArr2.stream().filter(j -> (i + j) % 3 == 0).map(j -> new int[]{i, j}))
+                .collect(Collectors.toList());
+
+        result.forEach(ints -> System.out.println(Arrays.toString(ints)));
     }
 
     /**
@@ -32,7 +47,12 @@ public class StreamFlatMap {
         int[] intArr1 = new int[]{1,2,3};
         int[] intArr2 = new int[]{3,4};
 
+        List<int[]> result = Arrays.stream(intArr1)
+                .boxed()
+                .flatMap(i -> Arrays.stream(intArr2).boxed().map(j -> new int[]{i,j}))
+                .collect(Collectors.toList());
 
+        result.forEach(ints -> System.out.println(Arrays.toString(ints)));
     }
 
     /**
@@ -80,7 +100,7 @@ public class StreamFlatMap {
 
         List<Integer> collect = Arrays.stream(numberArr)
                 .map(number -> number * number)
-                .boxed() // 将IntStream变成Stream<Integer>然后才能执行toList
+                .boxed() // boxed装箱 将IntStream变成Stream<Integer>然后才能执行toList
                 .collect(Collectors.toList());
 
         System.out.println(collect+"==");
