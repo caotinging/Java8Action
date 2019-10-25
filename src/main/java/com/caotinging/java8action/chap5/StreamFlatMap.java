@@ -1,9 +1,8 @@
 package com.caotinging.java8action.chap5;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -15,8 +14,6 @@ import java.util.stream.Stream;
  * @date: 2019/10/11
  */
 public class StreamFlatMap {
-
-
 
     public static void main(String[] args) {
         test4();

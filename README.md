@@ -1334,3 +1334,62 @@ boolean isHealthy = menu.stream()
   的Java中&&和||运算符短路在流中的版本
   
 #### 查找元素
+
+findAny方法将返回当前流中的任意元素。它可以与其他流操作结合使用。比如，你可能想
+找到一道素食菜肴。你可以结合使用filter和findAny方法来实现这个查询：
+
+```
+Optional<Dish> dish = menu.stream() 
+            .filter(Dish::isVegetarian) 
+            .findAny();
+```
+
+慢着，代码里面的Optional是个什么玩意儿？
+
+**Optional简介**
+
+Optional<T>类（java.util.Optional）是一个容器类，代表一个值存在或不存在。在
+上面的代码中，findAny可能什么元素都没找到。Java 8的库设计人员引入了Optional<T>，这
+样就不用返回众所周知容易出问题的null了。
+
+- isPresent()将在Optional包含值的时候返回true, 否则返回false。
+- ifPresent(Consumer<T> block)会在值存在的时候执行给定的代码块。我们在前面
+  介绍了Consumer函数式接口；它让你传递一个接收T类型参数，并返回void的Lambda
+  表达式。
+- T get()会在值存在时返回值，否则会抛出一个NoSuchElement异常。
+- T orElse(T other)会在值存在时返回值，否则返回一个默认值。
+
+例如，在前面的代码中你需要显式地检查Optional对象中是否存在一道素菜可以访问其名称：
+
+```
+menu.stream() 
+    .filter(Dish::isVegetarian) 
+    .findAny() 
+    .ifPresent(d -> System.out.println(d.getName()); // 如果包含值就返回菜名 否则什么都不做
+```
+
+### 查找第一个元素
+
+有些流有一个出现顺序（encounter order）来指定流中项目出现的逻辑顺序（比如由List或
+排序好的数据列生成的流）。对于这种流，你可能想要找到第一个元素。为此有一个findFirst
+方法，它的工作方式类似于findany。
+
+例如，给定一个数字列表，下面的代码能找出第一个平方能被3整除的数：
+
+```
+List<Integer> someNumbers = Arrays.asList(1, 2, 3, 4, 5); 
+Optional<Integer> firstSquareDivisibleByThree = someNumbers.stream() 
+                            .map(x -> x * x) 
+                            .filter(x -> x % 3 == 0) 
+                            .findFirst(); // 9
+```
+
+**何时用findFirst和findAny**
+
+你可能会想，为什么会有findFirst和findAny呢？答案是并行。找到第一个元素
+在并行上限制更多。如果你不关心返回的元素是哪个，请使用findAny，因为它在使用并行流
+时限制更少。
+
+[回顶部](#目录)
+
+### 归约
