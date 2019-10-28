@@ -1131,7 +1131,7 @@ menu.stream().forEach(System.out::println);
 > 以上都是书中所述，本人抱着实践出真知的态度亲自试了一下stream和for循环的性能比较，就在源码中的chap4中的[streamBasic](https://github.com/caotinging/Java8Action/blob/master/src/main/java/com/caotinging/java8action/chap4/StreamBasic.java)、结果大跌眼镜。在难以置信的情况下
 查阅了相关资料，发现了这个：[Follow-up: How fast are the Java 8 Streams?](https://jaxenter.com/follow-up-how-fast-are-the-java-8-streams-122522.html)
 这个：[Java 8 Stream的性能到底如何？](https://segmentfault.com/a/1190000004171551) 这个：[Java performance tutorial – How fast are the Java 8 streams?](https://jaxenter.com/java-performance-tutorial-how-fast-are-the-java-8-streams-118830.html)
-哎！
+但是，很多关于集合线程安全性方面的考虑，Stream已经帮我们做了，如果在多线程场景下，java7的写法再加上一堆的同步锁等操作。结果究竟如何也不得而知。
 
 [回顶部](#目录)
 
@@ -1393,3 +1393,87 @@ Optional<Integer> firstSquareDivisibleByThree = someNumbers.stream()
 [回顶部](#目录)
 
 ### 归约
+
+把一个流中的元素组合起来，使用reduce操作来表达更复杂的查
+询，比如“计算菜单中的总卡路里”或“菜单中卡路里最高的菜是哪一个”。
+
+此类查询需要将流中所有元素反复结合起来，得到一个值，比如一个Integer。
+用函数式编程语言的术语来说，这称为折叠（fold），因为你可以将这个操
+作看成把一张长长的纸（你的流）反复折叠成一个小方块，而这就是归约操作的结果。
+
+#### 元素求和
+
+在我们研究如何使用reduce方法之前，先来看看如何使用for-each循环来对数字列表中的
+元素求和：
+
+```
+int sum = 0; 
+for (int x : numbers) { 
+    sum += x; 
+}
+```
+
+这段代码中有两个参数：
+- 总和变量的初始值，在这里是0；
+- 将列表中所有元素结合在一起的操作，在这里是+。
+
+要是还能把所有的数字相乘，而不必去复制粘贴这段代码，ࡧ不是很好？这正是reduce操
+作的用武之地，它对这种重复应用的模式做了抽象。你可以像下面这样对流中所有的元素求和：
+
+```
+int sum = numbers.stream().reduce(0, (a, b) -> a + b);
+```
+
+reduce接受两个参数：
+- 一个初始值，这里是0；
+- 一个BinaryOperator<T>来将两个元素结合起来产生一个新值，这里我们用的是
+  lambda (a, b) -> a + b。
+  
+你也很容易把所有的元素相乘，只需要将另一个Lambda：(a, b) -> a * b传递给reduce
+操作就可以了：
+
+```
+int product = numbers.stream().reduce(1, (a, b) -> a * b);
+```
+
+你可以使用方法引用让这段代码更简洁。在Java 8中，Integer类现在有了一个静态的sum
+方法来对两个数求和，这恰好是我们想要的，用不着反复用Lambda写同一段代码了：
+
+```
+int sum = numbers.stream().reduce(0, Integer::sum);
+```
+
+**无初始值**
+
+reduce还有一个重载的变体，它不接受初始值，但是会返回一个Optional对象：
+```
+Optional<Integer> sum = numbers.stream().reduce((a, b) -> (a + b));
+```
+
+> 为什么它返回一个Optional<Integer>呢？考虑流中没有任何元素的情况。reduce操作无
+  法返回其和，因为它没有初始值。这就是为什么结果被包裹在一个Optional对象里，以表明和
+  可能不存在。
+  
+#### 最大值和最小值
+
+Integer类有了一个静态比较大小较大值（max）和较小值（min）的方法
+
+- 最大值
+```
+Optional<Integer> max = numbers.stream().reduce(Integer::max);
+```
+
+- 最小值
+```
+Optional<Integer> min = numbers.stream().reduce(Integer::min);
+```
+
+> 你当然也可以写成Lambda (x, y) -> x < y ? x : y而不是Integer::min，不过后者
+  比较易读。
+  
+> map和reduce的连接通常称为map-reduce模式，因Google用它来进行网络搜索而出名，
+  因为它很容易并行化。在源码chap5/StreamReduce.class/ 中有很多实践例子
+  
+[回顶部](#目录)
+
+### 
