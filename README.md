@@ -83,14 +83,14 @@ Java 8的第一个新功能是方法引用。
 
 比方说，你想要筛选一个目录中的所有隐藏文件。你需要编写一个方法，然后给它一个File，它就会告诉你文件是不是隐藏的。我们可以把它看作一个函数，接受一个File，返回一个布尔值。但要用它做筛选，你需要把它包在一个FileFilter对象里，然后传递给File.listFiles
 方法，如下所示：
-```
+```java
 File[] hiddenFiles = new File(".").listFiles(new FileFilter() { 
  public boolean accept(File file) { 
     return file.isHidden(); 
  }});
 ```
 真够啰嗦的，如今在Java 8里，你可以把代码重写成这个样子：
-```
+```java
 File[] hiddenFiles = new File(".").listFiles(File::isHidden);
 ```
 你已经有了函数isHidden，因此只需用Java8的**方法引用::语法**（即“把这个方法作为值”）将其传给listFiles方法；请注意，我们也开始用函数代表方法了。
@@ -107,7 +107,7 @@ File[] hiddenFiles = new File(".").listFiles(File::isHidden);
 [回顶部](#目录)
 ### 流
 几乎每个Java应用都会制造和处理集合。但集合用起来并不总是那么理想。比方说，你需要从一个列表中筛选金额较高的交易，然后按货币分组。你需要写一大堆套路化的代码来实现这个数据处理命令，如下所示：
-```
+```java
 Map<Currency, List<Transaction>> transactionsByCurrencies = new HashMap<>(); 
 for (Transaction transaction : transactions) { 
     if(transaction.getPrice() > 1000){ 
@@ -122,7 +122,7 @@ for (Transaction transaction : transactions) {
 }
 ```
 此外，我们很难一眼看出来这些代码是做什么的，因为有好几个嵌套的控制流指令。有了Stream API，你现在可以这样解决这个问题了：
-```
+```java
 import static java.util.stream.Collectors.toList; 
 Map<Currency, List<Transaction>> transactionsByCurrencies = 
     transactions.stream() 
@@ -148,14 +148,14 @@ Java 8用Stream API（java.util.stream）解决了这两个问题：**集合处�
 第二个原因是，这类操作常常可以并行化。在两个CPU上筛选列表，可以让一个CPU处理列表的前一半，第二个CPU处理后一半，这称为分支步骤。CPU随后对各自的半个列表做筛选。最后，一个CPU会把两个结果合并起来（Google搜索这么快就与此紧密相关，当然他们用的CPU远远不止两个了）。CPU并行处理如下图：
 ![cpu并行](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190829181343.png)
 顺序处理：
-```
+```java
 import static java.util.stream.Collectors.toList; 
 List<Apple> heavyApples = inventory.stream()
             .filter((Apple a) -> a.getWeight() > 150) 
             .collect(toList());
 ```
 并行处理：
-```
+```java
 import static java.util.stream.Collectors.toList; 
 List<Apple> heavyApples = inventory.parallelStream()
             .filter((Apple a) -> a.getWeight() > 150) 
@@ -172,7 +172,7 @@ List<Apple> heavyApples = inventory.parallelStream()
 
 ### 默认方法
 Java 8中加入默认方法主要是为了支持库设计师，让他们能够写出更容易改进的接口。这一方法很重要，因为你会在接口中遇到越来越多的默认方法。举个例子吧：
-```
+```java
 List<Apple> heavyApples1 = inventory.stream()
         .filter((Apple a) -> a.getWeight() > 150) 
         .collect(toList()); 
@@ -188,7 +188,7 @@ List<Apple> heavyApples2 = inventory.parallelStream()
 Java 8的解决方法就是打破最后一环——接口如今可以包含实现类没有提供实现的方法签名了！那谁来实现它呢？缺失的方法主体随接口提供了（因此就有了默认实现），而不是由实现类提供。
 
 在Java 8里，你现在可以直接对List调用sort方法。它是用Java8 List接口中如下所示的默认方法实现的，它会调用Collections.sort静态方法：
-```
+```java
 default void sort(Comparator<? super E> c) { 
     Collections.sort(this, c); 
 } 
@@ -200,7 +200,7 @@ default void sort(Comparator<? super E> c) {
 可以把Lambda表᣹式理解为简洁地表示可传递的匿名函数的一种方式：它没有名称，但它有参数列表、函数主体、返回类型，可能还有一个可以抛出的异常列表。
 
 Lambda表达式有三个部分：
-```
+```java
 Comparator<Apple> byWeight = 
     (Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight());
 ```
@@ -213,7 +213,7 @@ Comparator<Apple> byWeight =
 >接口现在还可以有默认方法，哪怕接口定义了很多默认方法，只要这个接口只定义了一个抽象方法。这个就是**函数式接口**。
 
 使用lambda
-```
+```java
 Runnable r1 = () -> System.out.println("Hello World 1");
 public static void process(Runnable r){ 
     r.run(); 
@@ -221,7 +221,7 @@ public static void process(Runnable r){
 process(r1);
 ```
 使用匿名类
-```
+```java
 Runnable r2 = new Runnable(){ 
  public void run(){ 
     System.out.println("Hello World 2"); 
@@ -233,7 +233,7 @@ public static void process(Runnable r){
 process(r2);
 ```
 使用函数式接口+lambda
-```
+```java
 public static void process(Runnable r){ 
  r.run(); 
 } 
@@ -247,7 +247,7 @@ process(() -> System.out.println("Hello World 3"));
 ![](http://clevercoder.cn/github/image/TIM%E6%88%AA%E5%9B%BE20190830160355.png)
 
 比如带资源的try语句块，会在结束后释放资源。而核心代码只有 **br.readLine()**
-```
+```java
 public static String processFile() throws IOException { 
     try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
         return br.readLine(); 
@@ -255,7 +255,7 @@ public static String processFile() throws IOException {
 }
 ```
 假如我们下次需要读取文件前两行呢？我们可能需要复制一下上面的方法。如下：
-```
+```java
 public static String processFileTwoLine() throws IOException { 
     try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
         return br.readLine() + br.readLine(); 
@@ -264,21 +264,21 @@ public static String processFileTwoLine() throws IOException {
 ```
 如果现在需要读取三行，最后一行呢？会造成太多代码冗余了！但是java8后你可以这样：
 1. 定义一个函数式接口
-```
+```java
 @FunctionalInterface 
 public interface BufferedReaderProcessor { 
     String process(BufferedReader b) throws IOException; 
 }
 ```
 2. 定义读取文件的方法
-```
+```java
 public static String processFile(BufferedReaderProcessor p) throws IOException { 
  try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) { 
     return p.process(br);
  }}
 ```
 3. 行为参数化-传递lamdba行为表达式
-```
+```java
 //处理一行：
 String oneLine = processFile((BufferedReader br) -> br.readLine()); 
 //处理两行：
@@ -293,7 +293,7 @@ String twoLines = processFile((BufferedReader br) -> br.readLine() + br.readLine
 >Predicate<T>接口定义了一个名叫test的抽象方法，它接受泛型T对象，并返回一个boolean。
 
 以下是源码的一部分：
-```
+```java
 @FunctionalInterface 
 public interface Predicate<T>{ 
     boolean test(T t); 
@@ -320,7 +320,7 @@ List<String> nonEmpty = filter(listOfStrings, (String s) -> !s.isEmpty());
 #### Consumer
 >Consumer<T>定义了一个名叫accept的抽象方法，它接受泛型T的对象，没有返回（void）。你如果需要访问类型T的对象，并对其执行某些操作，就可以使用这个接口.
 
-```
+```java
 @FunctionalInterface 
 public interface Consumer<T>{ 
   void accept(T t); 
@@ -342,7 +342,7 @@ forEach(
 #### Function
 >Function<T, R>接口定义了一个叫作apply的方法，它接受一个泛型T的对象，并返回一个泛型R的对象
 
-```
+```java
 @FunctionalInterface 
 public interface Function<T, R>{ 
     R apply(T t); 
@@ -392,7 +392,7 @@ Lambda的类型是从使用Lambda的上下文推断出来的。上下文（比�
 > 如果一个Lambda的主体是一个表达式，就和一个返回void的函数式接口兼容。（当然参数列表必须兼容）
 >
 > 例如，以下两行都是合法的，尽管List的add方法返回了一个boolean，而不是函数Consumer上下文（T -> void）所要求的void：
-```
+```java
 //Predicate返回了一个boolean 
 Predicate<String> p = s -> list.add(s); 
 //Consumer返回了一个void 
@@ -401,12 +401,12 @@ Consumer<String> b = s -> list.add(s);
 
 #### 类型推断
 Java编译器会像下面这样推断Lambda的参数类型：
-```
+```java
 // 参数a没有显示说明类型
 List<Apple> greenApples = filter(inventory, a -> "green".equals(a.getColor()));
 ```
 Lambda表达式有多个参数，代码可读性的好处就更为明显。例如，你可以这样来创建一个Comparator对象：
-```
+```java
 // 没有类型推断
 Comparator<Apple> c = (Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight());
 // 有类型推断
@@ -418,14 +418,14 @@ Comparator<Apple> c = (a1, a2) -> a1.getWeight().compareTo(a2.getWeight());
 我们迄今为止所介绍的所有Lambda表达式都只用到了其主体里面的参数。但Lambda表达式也允许使用自由变量（不是参数，而是在外层作用域中定义的变量），就像匿名类一样。 它们被称作捕获Lambda
 
 下面的Lambda捕获了portNumber变量：
-```
+```java
 int portNumber = 1337; 
 Runnable r = () -> System.out.println(portNumber);
 ```
 
 尽管如此，还有一点点小麻烦：关于能对这些局部变量做什么有一些限制。Lambda可以没有限制地捕获（也就是在其主体中引用）实例变量和静态变量。但是局部变量必须显式声明为final，或事实上是final。换句话说，Lambda表达式只能捕获局部变量一次。（注：捕获实例变量可以被看作捕获最终局部变量this。） 例如，下面的代码无法编译，因为portNumber变量被赋值两次：
 
-```
+```java
 int portNumber = 1337; 
 Runnable r = () -> System.out.println(portNumber);
 portNumber = 31337;
@@ -439,7 +439,7 @@ portNumber = 31337;
 #### 使用方法引用
 
 方法引用其实就是为了使代码可读性更高，例如：
-```
+```java
 // 直接使用lambda
 inventory.sort((Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight()));
 // 使用方法引用
@@ -449,7 +449,7 @@ inventory.sort(comparing(Apple::getWeight));
 
 当你需要使用方法引用时，目标引用放在分隔符::前，方法的名称放在后面。```Apple::getWight``` 即Apple是目标引用
 
-```
+```java
 () -> Thread.currentThread().dumpStack()  ==>    Thread.currentThread()::dumpStack
 (str, i) -> str.substring(i)              ==>    String::substring
 ```
@@ -457,17 +457,17 @@ inventory.sort(comparing(Apple::getWeight));
 **如何构建方法引用**
 
 -  指向静态方法的方法引用
-```
+```java
 (agrs) -> ClassName.staticMethod(args)    ==>    ClassName::staticMethod
 ```
 
 - 指向任意类型实例方法的引用
-```
+```java
 (exp,args) -> exp.instanceMethod(args)    ==>    ExpClassName::instanceMethod
 ```
 
 - 指向现有对象的实例方法的方法引用
-```
+```java
 // exp是已有变量
 (args) -> exp.instanceMethod(args)        ==>    exp::insatanceMethod
 ```
@@ -477,24 +477,24 @@ inventory.sort(comparing(Apple::getWeight));
 #### 构造函数引用
 
 - 无参构造函数引用 即 () -> T
-```
+```java
 Supplier<Apple> = Apple:new
 ```
 
 - 一个参数构造函数引用 即 (P) -> T
-```
+```java
 Function<Integer, Apple> = Apple::new
 ```
 
 - 两个参数的构造函数引用 即 (P1, P2) -> T
-```
+```java
 BiFunction<Integer, Integer, Apple> = Apple::new
 ```
 
 - 多个构造函数的引用也一样，只是需要自定义函数式接口。接口上下文符合 (P1,P2,P3...) -> T 即可
 
 一个栗子：
-```
+```java
 List<Integer> weights = Arrays.asList(7, 3, 4, 10); 
 // 调用map方法获得一组apple实例的集合
 List<Apple> apples = map(weights, Apple::new); 
@@ -509,7 +509,7 @@ public static List<Apple> map(List<Integer> list, Function<Integer, Apple> f){
 ```
 
 不将构造函数实例化却能够引用它，这个功能有一些有趣的应用。比如下面的giveMeFruit方法可以获得各种各样不同重量的水果实例：
-```
+```java
 // 创建一个Map 字符串映射相应的构造函数引用
 static Map<String, Function<Integer, Fruit>> map = new HashMap<>(); 
 static {
@@ -534,7 +534,7 @@ public static Fruit giveMeFruit(String fruit, Integer weight){
 但是，如何把排序策略传递给sort方法呢？你看，sort方法的签名是这样的：```void sort(Comparator<? super E> c)```。而Comparator是函数式接口，可以传递方法。因此我们可以认为sort的行为被参数化了。传递给它的排序策略不同，其行为也会不同。
 
 - 首先我们的第一个解决办法可能是：
-```
+```java
 inventory.sort(new Comparator<Apple>() { 
     public int compare(Apple a1, Apple a2){ 
         return a1.getWeight().compareTo(a2.getWeight()); 
@@ -547,12 +547,12 @@ inventory.sort(new Comparator<Apple>() {
 
 > 上面的例子可以看成是一个接收签名为 (T1,T2) -> int 的方法。
 
-```
+```java
 inventory.sort((Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight()));
 ```
 
 看起来好多了，因为lambda的类型推断，我们甚至可以1简化成下面这样：
-```
+```java
 inventory.sort((a1, a2) -> a1.getWeight().compareTo(a2.getWeight()));
 ```
 
@@ -561,7 +561,7 @@ inventory.sort((a1, a2) -> a1.getWeight().compareTo(a2.getWeight()));
   后面解释为什么接口可以有静态方法）。
   
 comparing的静态辅助方法源码如下：
-```
+```java
 public static <T, U extends Comparable<? super U>> Comparator<T> comparing(
             Function<? super T, ? extends U> keyExtractor)
 {
@@ -572,12 +572,12 @@ public static <T, U extends Comparable<? super U>> Comparator<T> comparing(
 ```
 
 它可以像下面这样用：
-```
+```java
 Comparator<Apple> c = Comparator.comparing((a) -> a.getWeight());
 ```
 
 现在你可以把代码再改得紧凑一点了：
-```
+```java
 inventory.sort(Comparator.comparing((a) -> a.getWeight());
 ```
 
@@ -586,7 +586,7 @@ inventory.sort(Comparator.comparing((a) -> a.getWeight());
 > 前面解释过，方法引用就是替代那些转发参数的Lambda表达式的语法糖。你可以用方法引
   用让你的代码更简洁
 
-```
+```java
 inventory.sort(Comparator.comparing(Apple::getWeight);
 ```
 
@@ -617,7 +617,7 @@ Java 8的好几个函数式接口都有为方便而设计的方法。具体而�
 
 - 逆序
 > 如果我们需要对之前的排序策略进行逆序怎么办？用不着去建立另一个Comparator的实例。接口有一个默认方法reversed可以使给定的比较器逆序
-```
+```java
 inventory.sort(comparing(Apple::getWeight).reversed());
 ```
 
@@ -626,7 +626,7 @@ inventory.sort(comparing(Apple::getWeight).reversed());
 需要再提供一个Comparator来进一步定义这个比较。比如，在按重量比较两个苹果之后，你可
 能想要按原产国排序。thenComparing方法就是做这个用的。
 
-```
+```java
 inventory.sort(comparing(Apple::getWeight) 
          .reversed() 
          .thenComparing(Apple::getCountry));
@@ -637,20 +637,20 @@ inventory.sort(comparing(Apple::getWeight)
 > 谓词接口包括三个方法：negate、and和or，你可以重用已有的Predicate来创建更复
   杂的谓词。比如，你可以使用negate方法来返回一个Predicate的非，比如苹果不是红的：
 
-```
+```java
 Predicate<Apple> redApple = (a) -> a.getColor().equals("red");
 Predicate<Apple> notRedApple = redApple.negate();
 ```
 
 > 你可能想要把两个Lambda用and方法组合起来，比如一个苹果既是红色的又比较重的：
 
-```
+```java
 Predicate<Apple> redAndHeavy = redApple.and((a) -> a.getWeight() > 150);
 ```
 
 > 你可以进一步组合谓词，表达要么是重（150克以上）的红苹果，要么是绿苹果：
 
-```
+```java
 Predicate<Apple> redAndHeavyOrGreen = redApple.and((a) -> a.getWeight() > 150)
                                               .or((a) -> a.getColor().equals("green"));
 ```
@@ -668,7 +668,7 @@ Predicate<Apple> redAndHeavyOrGreen = redApple.and((a) -> a.getWeight() > 150)
   比如，假设有一个函数f给数字加1 (x -> x + 1)，另一个函数g给数字˱2，你可以将它们组
   合成一个函数h，先给数字加1，再给结果乘2：
   
-  ```
+  ```java
   // g(f(x)) 即：((x+1)*2)
   Function<Integer, Integer> f = x -> x + 1; 
   Function<Integer, Integer> g = x -> x * 2; 
@@ -679,7 +679,7 @@ Predicate<Apple> redAndHeavyOrGreen = redApple.and((a) -> a.getWeight() > 150)
 > 使用compose方法，先把给定的函数用作compose的参数里面给的那个函
   数，然后再把函数本身用于结果。比如在上一个例子里用compose的话，它将意味着f(g(x))， 而andThen则意味着g(f(x))：
   
-  ```
+  ```java
   // 数学上会写作f(g(x)) 即 ((x*2)+1)  compose组成/构成
   Function<Integer, Integer> f = x -> x + 1; 
   Function<Integer, Integer> g = x -> x * 2; 
@@ -689,7 +689,7 @@ Predicate<Apple> redAndHeavyOrGreen = redApple.and((a) -> a.getWeight() > 150)
   
 > 那么在实际中这有什么用呢？比方说你有一系列工具方法，对用String表示的一份信做文本转换：
 
-```
+```java
 public class Letter{ 
     public static String addHeader(String text){ 
         return "From caotinging: " + text; 
@@ -706,7 +706,7 @@ public class Letter{
 > 现在你可以通过复合这些工具方法来创建各种转型流水线了，比如创建一个流水线：先加上
   抬头，然后进行拼写检查，最后加上一个落款：
   
-  ```
+  ```java
   Function<String, String> addHeader = Letter::addHeader; 
   Function<String, String> transformationPipeline 
         = addHeader.andThen(Letter::checkSpelling) 
@@ -746,13 +746,13 @@ Java 8的Lambda表达式```(double x) -> x + 10 ```就是函数f(x)的天然表�
 
 现在你可能在想如何写integrate本身了。我们还假设f是一个线性函数（直线）。你可能
 会写成类似数学的形式：
-```
+```java
 public double integrate((double -> double)f, double a, double b) { 
     return (f(a)+f(b))*(b-a)/2.0 
 }
 ```
 在java中看起来应该是这样：
-```
+```java
 public double integrate(DoubleFunction<Double> f, double a, double b) { 
     return (f.apply(a) + f.apply(b)) * (b-a) / 2.0; 
 }
@@ -769,7 +769,7 @@ public double integrate(DoubleFunction<Double> f, double a, double b) {
 并按照卡路里排序，一个是用Java 7写的，另一个是用Java 8的流写的。比较一下。
 
 java7
-```
+```java
 // 迭代器筛选卡路里低于400的食物
 List<Dish> lowCaloricDishes = new ArrayList<>(); 
 for(Dish d: menu){ 
@@ -794,7 +794,7 @@ for(Dish d: lowCaloricDishes){
  性的中间容器。在Java 8中，实现的细节被放在它本该归属的库里了。
 
 java8
-```
+```java
 import static java.util.Comparator.comparing; 
 import static java.util.stream.Collectors.toList; 
 
@@ -808,7 +808,7 @@ List<String> lowCaloricDishesName =
 
 > 为了利用多核架构并行执行这段代码，你只需要把stream()换成parallelStream()：
 
-```
+```java
 List<String> lowCaloricDishesName = 
                 menu.parallelStream() 
                     .filter(d -> d.getCalories() < 400) 
@@ -836,7 +836,7 @@ List<String> lowCaloricDishesName =
 - 可并行——性能更好
 
 我们会使用这样一个例子：一个menu，它只是一张菜单：
-```
+```java
 List<Dish> menu = Arrays.asList( 
  new Dish("pork", false, 800, Dish.Type.MEAT), 
  new Dish("beef", false, 700, Dish.Type.MEAT), 
@@ -849,7 +849,7 @@ List<Dish> menu = Arrays.asList(
  new Dish("salmon", false, 450, Dish.Type.FISH) );
 ```
 Dish类的定义是：
-```
+```java
 public class Dish { 
      private final String name; 
      private final boolean vegetarian; // 素
@@ -906,7 +906,7 @@ public class Dish {
 - **内部迭代**——与使用迭代器显式迭代的集合不同，流的迭代操作是在背后进行的。
 
 让我们来看一段能够体现所有这些概念的代码：
-```
+```java
 import static java.util.stream.Collectors.toList; 
 List<String> threeHighCaloricDishNames = 
                     menu.stream()  // 从菜单集合中获取流-建立流水线
@@ -966,7 +966,7 @@ System.out.println(threeHighCaloricDishNames);
 你可以从原始数据源那里再获得一个新的流来重新遍历一遍，就像迭代器一样（这里假设它是集
 合之类的可重复的源，如果是I/O通道就没戏了）。
 
-```
+```java
 List<String> title = Arrays.asList("Java8", "In", "Action"); 
 Stream<String> s = title.stream(); 
 s.forEach(System.out::println);
@@ -982,7 +982,7 @@ s.forEach(System.out::println);
 Streams库使用内部迭代——它帮你把迭代做了，还把得到的流值存在了某个地方，你只要给出
 一个函数说要干什么就可以了
 
-```
+```java
 // 集合：使用for-each循环外部迭代
 List<String> names = new ArrayList<>(); 
 for(Dish d: menu){ 
@@ -993,7 +993,7 @@ for(Dish d: menu){
 请注意，for-each还隐藏了迭代中的一些复杂性。for-each结构是一个语法糖，它背后的
 东西用Iterator对象表达出来更要丑陋得多。
 
-```
+```java
 // 集合：用背后的迭代器做外部迭代
 List<String> names = new ArrayList<>(); 
 Iterator<String> iterator = menu.iterator(); 
@@ -1003,7 +1003,7 @@ while(iterator.hasNext()) {
 }
 ```
 
-```
+```java
 // 流：内部迭代，将得到的操作流根据提供的函数进行操作
 List<String> names = menu.stream() 
             .map(Dish::getName)
@@ -1047,7 +1047,7 @@ List<String> names = menu.stream()
 ### 流操作
 
 stream定义了很多操作，分为两类：
-```
+```java
 List<String> names = menu.stream() 
                 .filter(d -> d.getCalories() > 300)
                 .map(Dish::getName) 
@@ -1073,7 +1073,7 @@ List<String> names = menu.stream()
 理的菜肴（就像很多演示和调试技巧一样，这种编程风格要是放在生产代码里那就吓死人了，但
 是学习的时候却可以直接看清楚求值的顺序）：
 
-```
+```java
 List<String> names = 
     menu.stream() 
         .filter(d -> { 
@@ -1091,7 +1091,7 @@ System.out.println(names);
 ```
 
 此时打印的结果如下：
-```
+```java
 filtering pork 
 mapping pork 
 filtering beef 
@@ -1114,7 +1114,7 @@ mapping chicken
 菜应用一个Lambda。把System.out.println传递给forEach，并要求它打印出由menu生成的
 流中的每一个Dish：
 
-```
+```java
 menu.stream().forEach(System.out::println);
 ```
 
@@ -1142,7 +1142,7 @@ menu.stream().forEach(System.out::println);
 Streams接口支持filter方法（你现在应该很熟悉了）。该操作会接受一个谓词（一个返回
 boolean的函数）作为参数，并返回一个包括所有符合谓词的元素的流。
 
-```
+```java
 // 筛选所有素菜
 List<Dish> vegetarianMenu = menu.stream() 
                 .filter(Dish::isVegetarian) 
@@ -1155,7 +1155,7 @@ List<Dish> vegetarianMenu = menu.stream()
 hashCode和equals方法实现）的流。例如，以下代码会筛选出列表中所有的偶数，并确保没有
 重复。
 
-```
+```java
 List<Integer> numbers = Arrays.asList(1, 2, 1, 3, 3, 2, 4); 
 numbers.stream() 
        .filter(i -> i % 2 == 0) 
@@ -1169,7 +1169,7 @@ numbers.stream()
 给limit。如果流是有序的，则最多会返回前n个元素。比如，你可以建立一个List，选出能量
 超过300卡路里的头三道菜：
 
-```
+```java
 List<Dish> dishes = menu.stream() 
                         .filter(d -> d.getCalories() > 300) 
                         .limit(3) 
@@ -1182,7 +1182,7 @@ List<Dish> dishes = menu.stream()
 个空流。请注意，limit(n)和skip(n)是互补的！例如，下面的代码将跳过超过300卡路里的头
 两道菜，并返回剩下的。
 
-```
+```java
 List<Dish> dishes = menu.stream() 
                         .filter(d -> d.getCalories() > 300) 
                         .skip(2) 
@@ -1201,7 +1201,7 @@ List<Dish> dishes = menu.stream()
 成一个新的元素，（创建新版本而不是修改原始流）例如，下面的代码把方法引用Dish::getName传给了map方法，
 来提取流中菜肴的名称：
 
-```
+```java
 List<String> dishNames = menu.stream() 
                              .map(Dish::getName) 
                              .collect(toList());
@@ -1215,7 +1215,7 @@ List<String> dishNames = menu.stream()
 你需要对列表中的每个元素应用一个函数。应用的函数应该接受一个单词，并返回其长度。你可以像下面
 这样，给map传递一个方法引用String::length来解决这个问题：
 
-```
+```java
 List<String> words = Arrays.asList("Java 8", "Lambdas", "In", "Action"); 
 List<Integer> wordLengths = words.stream() 
                                  .map(String::length) 
@@ -1225,7 +1225,7 @@ List<Integer> wordLengths = words.stream()
 现在让我们回到提取菜名的例子。如果你要找出每道菜的名称有多长，怎么做？你可以像下
 面这样，再链接上一个map：
 
-```
+```java
 List<Integer> dishNameLengths = menu.stream() 
                                     .map(Dish::getName) 
                                     .map(String::length) 
@@ -1241,7 +1241,7 @@ List<Integer> dishNameLengths = menu.stream()
 你可能会认为这很容易，你可以把每个单词映射成一张字符表，然后调用distinct来过滤
 重复的字符。第一个版本可能是这样的：
 
-```
+```java
 words.stream() 
  .map(word -> word.split("")) 
  .distinct() 
@@ -1256,13 +1256,13 @@ Stream<String>来表示一个字符流。
 
 首先，你需要一个字符流，而不是数组流。有一个叫作Arrays.stream()的方法可以接受
 一个数组并产生一个流，例如:
-```
+```java
 String[] arrayOfWords = {"Goodbye", "World"}; 
 Stream<String> streamOfwords = Arrays.stream(arrayOfWords);
 ```
 
 把它用在前面的那个流水线里，看看会发生什么：
-```
+```java
 words.stream() 
  .map(word -> word.split("")) 
  .map(Arrays::stream)
@@ -1278,7 +1278,7 @@ Stream<String>类型的List）！的确，你先是把每个单词转换成一�
 使用flatMap方法的效果是，各个数组并不是分别映射成一个流，而映射成流的内容。所
 有使用map(Arrays::stream)时生成的单个流都被合并起来，即扁平化为一个流。
 
-```
+```java
 List<String> uniqueCharacters = words.stream() 
                                     .map(w -> w.split("")) 
                                     .flatMap(Arrays::stream) 
@@ -1302,7 +1302,7 @@ Stream API通过allMatch、anyMatch、noneMatch、findFirst和findAny方法提�
 
 anyMatch方法可以解决 “流中是否有一个元素能匹配给定的谓词”。比如，你可以用它来看看菜单里面是否有素食可选择：
 
-```
+```java
 if(menu.stream().anyMatch(Dish::isVegetarian)){ 
     System.out.println("The menu is (somewhat) vegetarian friendly!!"); 
 }
@@ -1316,7 +1316,7 @@ anyMatch方法返回一个boolean，因此是一个终端操作
 
 allMatch方法会检查流中的元素是否都能匹配给定的谓词。比如，你可以用它来看看菜单是否有利健康（即所有菜品的热量都低于1000卡路里）：
 
-```
+```java
 boolean isHealthy = menu.stream() 
     .allMatch(d -> d.getCalories() < 1000);
 ```
@@ -1325,7 +1325,7 @@ boolean isHealthy = menu.stream()
 
 noneMatch它可以确保流中没有任何元素与给定的谓词匹配。比如，你可以用noneMatch重写前面的例子：
 
-```
+```java
 boolean isHealthy = menu.stream() 
         .noneMatch(d -> d.getCalories() >= 1000);
 ```
@@ -1338,7 +1338,7 @@ boolean isHealthy = menu.stream()
 findAny方法将返回当前流中的任意元素。它可以与其他流操作结合使用。比如，你可能想
 找到一道素食菜肴。你可以结合使用filter和findAny方法来实现这个查询：
 
-```
+```java
 Optional<Dish> dish = menu.stream() 
             .filter(Dish::isVegetarian) 
             .findAny();
@@ -1361,7 +1361,7 @@ Optional<T>类（java.util.Optional）是一个容器类，代表一个值存在
 
 例如，在前面的代码中你需要显式地检查Optional对象中是否存在一道素菜可以访问其名称：
 
-```
+```java
 menu.stream() 
     .filter(Dish::isVegetarian) 
     .findAny() 
@@ -1376,7 +1376,7 @@ menu.stream()
 
 例如，给定一个数字列表，下面的代码能找出第一个平方能被3整除的数：
 
-```
+```java
 List<Integer> someNumbers = Arrays.asList(1, 2, 3, 4, 5); 
 Optional<Integer> firstSquareDivisibleByThree = someNumbers.stream() 
                             .map(x -> x * x) 
@@ -1406,7 +1406,7 @@ Optional<Integer> firstSquareDivisibleByThree = someNumbers.stream()
 在我们研究如何使用reduce方法之前，先来看看如何使用for-each循环来对数字列表中的
 元素求和：
 
-```
+```java
 int sum = 0; 
 for (int x : numbers) { 
     sum += x; 
@@ -1420,7 +1420,7 @@ for (int x : numbers) {
 要是还能把所有的数字相乘，而不必去复制粘贴这段代码，ࡧ不是很好？这正是reduce操
 作的用武之地，它对这种重复应用的模式做了抽象。你可以像下面这样对流中所有的元素求和：
 
-```
+```java
 int sum = numbers.stream().reduce(0, (a, b) -> a + b);
 ```
 
@@ -1432,21 +1432,21 @@ reduce接受两个参数：
 你也很容易把所有的元素相乘，只需要将另一个Lambda：(a, b) -> a * b传递给reduce
 操作就可以了：
 
-```
+```java
 int product = numbers.stream().reduce(1, (a, b) -> a * b);
 ```
 
 你可以使用方法引用让这段代码更简洁。在Java 8中，Integer类现在有了一个静态的sum
 方法来对两个数求和，这恰好是我们想要的，用不着反复用Lambda写同一段代码了：
 
-```
+```java
 int sum = numbers.stream().reduce(0, Integer::sum);
 ```
 
 **无初始值**
 
 reduce还有一个重载的变体，它不接受初始值，但是会返回一个Optional对象：
-```
+```java
 Optional<Integer> sum = numbers.stream().reduce((a, b) -> (a + b));
 ```
 
@@ -1459,12 +1459,12 @@ Optional<Integer> sum = numbers.stream().reduce((a, b) -> (a + b));
 Integer类有了一个静态比较大小较大值（max）和较小值（min）的方法
 
 - 最大值
-```
+```java
 Optional<Integer> max = numbers.stream().reduce(Integer::max);
 ```
 
 - 最小值
-```
+```java
 Optional<Integer> min = numbers.stream().reduce(Integer::min);
 ```
 
