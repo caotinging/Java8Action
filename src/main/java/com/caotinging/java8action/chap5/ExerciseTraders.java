@@ -1,9 +1,6 @@
 package com.caotinging.java8action.chap5;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -63,6 +60,9 @@ public class ExerciseTraders {
                 .reduce(Integer::min);
 
         System.out.println(result.orElse(0));
+
+        Optional<Transaction> min = transactions.stream()
+                .min(Comparator.comparing(Transaction::getValue));
     }
 
     /**
@@ -80,12 +80,16 @@ public class ExerciseTraders {
      * (6) 打印生活在剑桥的交易员的所有交易额。
      */
     private static void test6() {
-        Integer result = transactions.stream()
+        transactions.stream()
+                .filter(transaction -> transaction.getTrader().getCity().equals("Cambridge"))
+                .map(Transaction::getValue)
+                .forEach(System.out::println);
+
+        // 这里是总金额
+        Integer result2 = transactions.stream()
                 .filter(transaction -> transaction.getTrader().getCity().equals("Cambridge"))
                 .map(Transaction::getValue)
                 .reduce(0, Integer::sum);
-
-        System.out.println(result);
     }
 
     /**
@@ -101,19 +105,34 @@ public class ExerciseTraders {
         } else {
             System.out.println("没有");
         }
+
+        // 或者如下
+        boolean result2 = transactions.stream()
+                .anyMatch(transaction -> transaction.getTrader().getCity().equals("Milan"));
     }
 
     /**
      * (4) 返回所有交易员的姓名字符串，按字母顺序排序。
      */
     private static void test4() {
-        List<String> result = transactions.stream()
+        String result = transactions.stream()
                 .map(transaction -> transaction.getTrader().getName())
                 .distinct()
                 .sorted(String::compareTo)
-                .collect(Collectors.toList());
+                .reduce("", (s1, s2) -> s1 + s2);
 
-        result.forEach(System.out::println);
+        System.out.println(result);
+
+        /*
+         * 请注意，此解决方案效率不高（所有字符串都被反复连接，每次迭代的时候都要建立一个新
+         * 的String对象）。下一章中，你将看到一个更为高效的解决方案，它像下面这样使用joining（其
+         * 内部会用到StringBuilder）：
+         */
+        String result2 = transactions.stream()
+                .map(transaction -> transaction.getTrader().getName())
+                .distinct()
+                .sorted(String::compareTo)
+                .collect(Collectors.joining());
     }
 
     /**
@@ -145,12 +164,21 @@ public class ExerciseTraders {
      * (2) 交易员都在哪些不同的ۡ市工作过？
      */
     private static void test2(){
-        List<String> result = transactions.stream()
+        System.out.println("方法一：");
+        List<String> result1 = transactions.stream()
                 .map(transaction -> transaction.getTrader().getCity())
                 .distinct()
                 .collect(Collectors.toList());
 
-        result.forEach(System.out::println);
+        result1.forEach(System.out::println);
+
+        // 这里还有一个新招：你可以去掉distinct()，改用toSet()，这样就会把流转换为集合并互不重复。
+        System.out.println("方法二：");
+        Set<String> result2 = transactions.stream()
+                .map(transaction -> transaction.getTrader().getCity())
+                .collect(Collectors.toSet());
+
+        result2.forEach(System.out::println);
     }
 
     /**
