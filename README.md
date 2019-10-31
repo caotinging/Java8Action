@@ -1503,11 +1503,12 @@ Optional<Integer> min = numbers.stream().reduce(Integer::min);
 
 以下是你要处理的领域，一个Traders和Transactions的列表：
 
-```
+```java
 Trader raoul = new Trader("Raoul", "Cambridge"); 
 Trader mario = new Trader("Mario","Milan"); 
 Trader alan = new Trader("Alan","Cambridge"); 
 Trader brian = new Trader("Brian","Cambridge"); 
+
 List<Transaction> transactions = Arrays.asList( 
      new Transaction(brian, 2011, 300), 
      new Transaction(raoul, 2012, 1000), 
@@ -1520,7 +1521,7 @@ List<Transaction> transactions = Arrays.asList(
 
 Trader和Transaction类的定义如下：
 
-```
+```java
 public class Trader{ 
     private final String name; 
     private final String city; 
@@ -1565,3 +1566,13 @@ public class Transaction{
 }
 ```
 
+### 数值流
+
+我们在前面看到了可以使用reduce方法计算流中元素的总和。例如，你可以像下面这样计
+算菜单的热量：
+
+```java
+int calories = menu.stream() 
+                .map(Dish::getCalories) 
+                .reduce(0, Integer::sum);
+```
