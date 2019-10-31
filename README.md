@@ -1472,8 +1472,95 @@ Optional<Integer> min = numbers.stream().reduce(Integer::min);
   比较易读。
   
 > map和reduce的连接通常称为map-reduce模式，因Google用它来进行网络搜索而出名，
-  因为它很容易并行化。在源码chap5/StreamReduce.class/ 中有很多实践例子
+  因为它很容易并行化。在源码chap5/StreamReduce.class/ 中有实践例子
+
+#### 中间操作和终端操作表
+![](http://clevercoder.cn/github/image/20191029100726.png)
   
 [回顶部](#目录)
 
-### 
+### 付诸实践
+
+将迄今学到的关于流的知识付诸实践。我们来看一个不同的领域：执行交易
+的交易员。你的经理让你为八个查询找到答案。我在[源代码]()给出了答案，但你应
+该自己先解答一下作为练习。
+
+(1) 找出2011年发生的所有交易，并按交易额排序（从低到高）。
+
+(2) 交易员都在哪些不同的ۡ市工作过？
+
+(3) 查找所有来自于剑桥的交易员，并按姓名排序。
+
+(4) 返回所有交易员的姓名字符串，按字母顺序排序。
+
+(5) 有没有交易员是在米兰工作的？
+
+(6) 打印生活在剑桥的交易员的所有交易额。
+
+(7) 所有交易中，最高的交易额是多少？
+
+(8) 找到交易额最小的交易。
+
+以下是你要处理的领域，一个Traders和Transactions的列表：
+
+```
+Trader raoul = new Trader("Raoul", "Cambridge"); 
+Trader mario = new Trader("Mario","Milan"); 
+Trader alan = new Trader("Alan","Cambridge"); 
+Trader brian = new Trader("Brian","Cambridge"); 
+List<Transaction> transactions = Arrays.asList( 
+     new Transaction(brian, 2011, 300), 
+     new Transaction(raoul, 2012, 1000), 
+     new Transaction(raoul, 2011, 400), 
+     new Transaction(mario, 2012, 710), 
+     new Transaction(mario, 2012, 700), 
+     new Transaction(alan, 2012, 950) 
+);
+```
+
+Trader和Transaction类的定义如下：
+
+```
+public class Trader{ 
+    private final String name; 
+    private final String city; 
+    public Trader(String n, String c){ 
+        this.name = n; 
+        this.city = c; 
+    } 
+    public String getName(){ 
+        return this.name; 
+    } 
+    public String getCity(){ 
+        return this.city; 
+    }
+    public String toString(){ 
+        return "Trader:"+this.name + " in " + this.city; 
+    } 
+} 
+
+public class Transaction{ 
+    private final Trader trader; 
+    private final int year; 
+    private final int value; 
+    public Transaction(Trader trader, int year, int value){ 
+        this.trader = trader; 
+        this.year = year; 
+        this.value = value; 
+    } 
+    public Trader getTrader(){ 
+        return this.trader; 
+    } 
+    public int getYear(){ 
+        return this.year; 
+    } 
+    public int getValue(){ 
+        return this.value; 
+    } 
+    public String toString(){ 
+        return "{" + this.trader + ", " + 
+        "year: "+this.year+", " + 
+        "value:" + this.value +"}"; 
+    } 
+}
+```
