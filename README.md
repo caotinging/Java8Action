@@ -1482,7 +1482,7 @@ Optional<Integer> min = numbers.stream().reduce(Integer::min);
 ### 付诸实践
 
 将迄今学到的关于流的知识付诸实践。我们来看一个不同的领域：执行交易
-的交易员。你的经理让你为八个查询找到答案。我在[源代码]()给出了答案，但你应
+的交易员。你的经理让你为八个查询找到答案。我在[源代码](https://github.com/caotinging/Java8Action/blob/master/src/main/java/com/caotinging/java8action/chap5/ExerciseTraders.java)给出了答案，但你应
 该自己先解答一下作为练习。
 
 (1) 找出2011年发生的所有交易，并按交易额排序（从低到高）。
@@ -1576,3 +1576,200 @@ int calories = menu.stream()
                 .map(Dish::getCalories) 
                 .reduce(0, Integer::sum);
 ```
+
+这段代码的问题是，它有一个暗含的装箱成本。每个Integer都必须拆箱成一个原始类型，
+再进行求和。但是Stream为我们提供了更好的解决办法
+
+#### 原始类型流特化
+
+Java 8引入了三个原始类型特化流接口来解决这个问题：IntStream、DoubleStream和
+LongStream，分别将流中的元素特化为int、long和double，从而避免了暗含的装箱成本。
+
+**映射到数值流**
+
+将流转换为特化版本的常用方法是mapToInt、mapToDouble和mapToLong。这些方法和前
+面说的map方法的工作方式一样，只是它们返回的是一个特化流，而不是Stream<T>。
+
+你可以像下面这样用mapToInt对menu中的卡路里求和：
+```java
+int calories = menu.stream() 
+                .mapToInt(Dish::getCalories) 
+                .sum();
+```
+
+> 这里，mapToInt会从每道菜中提取热量（用一个Integer表示），并返回一个IntStream
+  （而不是一个Stream<Integer>）。然后你就可以调用IntStream接口中定义的sum方法，对卡
+  路里求和了！请注意，如果流是空的，sum默认返回0。IntStream还支持其他的方便方法，如
+  max、min、average等。
+  
+**转换回对象流**
+
+同样，一旦有了数值流，你可能会想把它转换回非特化流。例如，IntStream上的操作只能
+产生原始整数： IntStream 的 map 操作接受的 Lambda 必须接受 int 并返回 int （一个
+IntUnaryOperator）。但是你可能想要生成另一类值，比如Dish。为此，你需要访问Stream
+接口中定义的那些更广义的操作。要把原始流转换成一般流（每个int都会装箱成一个
+Integer），可以使用boxed方法
+
+```java
+Stream<Integer> stream = intStream.boxed();
+```
+**默认值OptionalInt**
+
+求和的那个例子很容易，因为它有一个默认值：0。但是，如果你要计算IntStream中的最
+大元素，就得换个法子了，因为0是错误的结果。Optional可以用
+Integer、String等参考类型来参数化。对于三种原始流特化，也分别有一个Optional原始类
+型特化版本：OptionalInt、OptionalDouble和OptionalLong。
+
+例如，要找到IntStream中的最大元素，可以调用max方法，它会返回一个OptionalInt：
+```java
+OptionalInt maxCalories = menu.stream() 
+                            .mapToInt(Dish::getCalories) 
+                            .max();
+```
+
+现在，如果没有最大值的话，你就可以显式处理OptionalInt去定义一个默认值了：
+```java
+int max = maxCalories.orElse(1);
+```
+[回顶部](#目录)
+
+#### 数值范围
+
+假设你想要生成1和100之间的所有数值，
+Java 8引入了两个可以用于IntStream和LongStream的静态方法，帮助生成这种范围：
+range和rangeClosed。这两个方法都是第一个参数接受起始值，第二个参数接受结束值。但
+range是不包含结束值的，而rangeClosed则包含结束值
+
+```java
+// 这里的范围是[1,100] 结果为50个
+int evenNumbers = IntStream.rangeClosed(1, 100)
+                            .filter(n -> n % 2 == 0)
+                            .count();
+
+// 这里的范围是[1,100) 不包含100 结果为49
+int evenNumbers2 = IntStream.range(1, 100)
+                            .filter(n -> n % 2 == 0)
+                            .count();
+```
+
+#### 数值流的应用勾股数
+
+现在我们来看一个难一点儿的例子，让你回顾一下有关数值流以及到目前为止学过的所有流
+操作的知识。任务就是创建一个勾股数流。
+
+**1.勾股数**
+
+那么什么是勾ᐦ数（毕达哥加斯三元数）呢？数学家毕达哥加斯发现了某些三元数(a, b, c)满足公式a * a + b * b = 
+c * c，其中a、b、c都是整数。例如，(3, 4, 5)就是一组有效的勾股数，因为3 * 3 + 4 * 4 = 5 * 5
+或9 + 16 = 25。这样的三元数有无限组。例如，(5, 12, 13)、(6, 8, 10)和(7, 24, 25)都是有效的勾股数。勾股数很有用，因为它们描述的正好是直角三角形的三条直角边长
+
+![](http://clevercoder.cn/github/image/20191101152436.png)
+
+**2.表示三元数**
+
+那么，怎么入手呢？第一步是定义一个三元数。虽然更恰当的做法是定义一个新的类来表示
+三元数，但这里你可以使用具有三个元素的int数组，比如new int[]{3, 4, 5}，来表示勾股数(3, 4, 5)。现在你就可以用数组索引访问每个元素了。
+
+**3.筛选成立的组合**
+
+假定有人为你提供了三元数中的前两个数字：a和b。怎么知道它是否能形成一组勾股数呢？
+你需要测试 a * a + b * b的平方根是不是整数，也就是说它没有小数部分——在Java里可以
+使用expr % 1表示。如果它不是整数，那就是说c不是整数。
+
+```java
+filter(b -> Math.sqrt(a*a + b*b) % 1 == 0)
+```
+假设周围的代码给a提供了一个值，并且stream提供了b可能出现的值，filter将只选出那
+些可以与a组成勾股数的b。
+
+**4.生产三元组**
+
+在筛选之后，你知道a和b能够组成一个正确的组合。现在需要创建一个三元组。你可以使用
+map操作，像下面这样把每个元素转换成一个勾股数组：
+
+```java
+stream.filter(b -> Math.sqrt(a*a + b*b) % 1 == 0) 
+     .map(b -> new int[]{a, b, (int) Math.sqrt(a * a + b * b)});
+```
+
+**5.生产b值**
+
+前面已经看到，Stream.rangeClosed让你可以在给定
+区间内生成一个数值流。你可以用它来给b提供数值，这里是1到100：
+
+```java
+IntStream.rangeClosed(1, 100)
+    .filter(b -> Math.sqrt(a*a + b*b) % 1 == 0) 
+    .boxed() 
+    .map(b -> new int[]{a, b, (int) Math.sqrt(a * a + b * b)});
+```
+
+请注意，你在filter之后调用boxed， 从rangeClosed返回的IntStream生成一个
+Stream<Integer>。这是因为你的map会为流中的每个元素返回一个int数组。而不是int
+
+你也可以像下面这样使用mapToObj改写这个方法:
+
+```java
+IntStream.rangeClosed(1, 100) 
+        .filter(b -> Math.sqrt(a*a + b*b) % 1 == 0) 
+        .mapToObj(b -> new int[]{a, b, (int) Math.sqrt(a * a + b * b)});
+```
+
+**6.生成值**
+
+这里有一个关键的假设：给出了a的值。 现在，只要已知a的值，你就有了一个可以生成勾
+ᐦ数的流。如何解决这个问题呢？就像b一样，你需要为a生成数值
+
+```java
+Stream<int[]> pythagoreanTriples = 
+    IntStream.rangeClosed(1, 100)
+             .boxed() 
+             .flatMap(a -> IntStream.rangeClosed(a, 100) 
+                                    .filter(b -> Math.sqrt(a*a + b*b) % 1 == 0) 
+                                    .mapToObj(b -> new int[]{a, b, (int)Math.sqrt(a * a + b * b)})
+             );
+```
+
+好的，flatMap又是怎么回事呢？首先，创建一个从1到100的数值范围来生成a的值。对每
+个给定的a值，创建一个三元数流。要是把a的值映射到三元数流的话，就会得到一个由流构成的
+流。flatMap方法在做映射的同时，还会把所有生成的三元数流扁平化成一个流。这样你就得到
+了一个三元数流。
+
+还要注意，我们把b的范围改成了a到100。没有必要再从1开始了，否则就会造
+成重复的三元数，例如(3,4,5)和(4,3,5)。
+
+**7.运行代码**
+
+现在你可以运行解决方案，并且可以利用我们前面看到的limit命令，明确限定从生成的流
+中要返回多少组勾ᐦ数了：
+
+```java
+pythagoreanTriples.limit(5) 
+                .forEach(t -> System.out.println(t[0] + ", " + t[1] + ", " + t[2]));
+```
+
+这会打印：
+
+```
+3, 4, 5 
+5, 12, 13 
+6, 8, 10 
+7, 24, 25 
+8, 15, 17
+```
+
+**8.进一步优化**
+
+目前的解决办法并不是最优的，因为你要求两次平方根。让代码更为紧凑的一种可能的方法
+是，先生成所有的三元数(a*a, b*b, a*a+b*b)，然后再筛选符合条件的：
+
+```java
+Stream<double[]> pythagoreanTriples2 = 
+            IntStream.rangeClosed(1, 100).boxed() 
+                     .flatMap(a -> IntStream.rangeClosed(a, 100) 
+                                            .mapToObj( b -> new double[]{a, b, Math.sqrt(a*a + b*b)}) 
+                                            .filter(t -> t[2] % 1 == 0)
+                      );
+```
+
+### 构建流
