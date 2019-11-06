@@ -14,12 +14,11 @@ public class NumberStream {
     public static void main(String[] args) {
 
         /*
-            1.确定好a的值
-            2.将a的值映射过去匹配生产的b值
-            3.过滤符合的b值的条件为：a*a+b*b的平方根为整数
-            4.剩下就是整合起来进行显示了
+         * 1.确定好a的值
+         * 2.将a的值映射过去匹配生产的b值
+         * 3.过滤符合的b值的条件为：a*a+b*b的平方根为整数
+         * 4.剩下就是整合起来进行显示了
          */
-
         Stream<int[]> stream = IntStream.rangeClosed(1, 100)
                 .boxed()
                 .flatMap(
@@ -33,7 +32,6 @@ public class NumberStream {
          * 2.根据a。b的值推导出符合条件的c的值
          * 3.判断是否符合条件
          */
-
         Stream<double[]> stream2 = IntStream.rangeClosed(1, 100)
                 .boxed()
                 .flatMap(a -> IntStream.rangeClosed(a, 100)

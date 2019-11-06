@@ -1772,4 +1772,93 @@ Stream<double[]> pythagoreanTriples2 =
                       );
 ```
 
+[回顶部](#目录)
+
 ### 构建流
+
+到目前为止，你已经能够使用stream方法从集合生成流了。此外，我们还介绍了如何根据数值范围创建
+数值流。但创建流的方法还有许多！本节将介绍如何从值序列、数组、文件来创建流，甚至由生
+成函数来创建无限流！
+
+#### 由值创建流
+
+你可以使用静态方法Stream.of，通过显式值创建一个流。它可以接受任意数量的参数。例
+如，以下代码直接使用Stream.of创建了一个字符串流。然后，你可以将字符串转换为大写，再
+一个个打印出来：
+
+```java
+Stream<String> stream = Stream.of("Java 8 ", "Lambdas ", "In ", "Action"); 
+stream.map(String::toUpperCase).forEach(System.out::println);
+```
+
+你可以使用empty得到一个空流，如下所示：
+
+```java
+Stream<String> emptyStream = Stream.empty();
+```
+
+#### 由数组创建流
+
+你可以使用静态方法Arrays.stream从数组创建一个流。它接受一个数组作为参数。例如，
+你可以将一个原始类型int的数组转换成一个IntStream，如下所示：
+
+```java
+int[] numbers = {2, 3, 5, 7, 11, 13}; 
+int sum = Arrays.stream(numbers).sum();
+```
+
+#### 由文件生成流
+
+Java中用于处理文件等I/O操作的NIO API（非阻塞I/O）已更新，以便利用Stream API。
+java.nio.file.Files中的很多静态方法都会返回一个流。
+
+> 例如，一个很有用的方法是Files.lines，它会返回一个由指定文件中的各行构成的字符串流。使用你迄今所学的内容，
+你可以用这个方法看看一个文件中有多少各不相同的词：
+
+```java
+long uniqueWords = 0; 
+try(Stream<String> lines = Files.lines(Paths.get("data.txt"), Charset.defaultCharset())){ 
+    uniqueWords = lines.flatMap(line -> Arrays.stream(line.split(" ")))
+                    .distinct() 
+                    .count(); 
+} 
+catch(IOException e){
+}
+```
+
+#### 由函数生成无限流
+
+Stream API提供了两个静态方法来从函数生成流：Stream.iterate和Stream.generate。
+这两个操作可以创建所谓的无限流：不像从固定集合创建的流那样有固定大小的流。由iterate
+和generate产生的流会用**给定的函数按需创建值**，因此可以无穷无尽地计算下去！一般来说，
+应该使用limit(n)来对这种流加以限制
+
+**1.迭代**
+
+我们先来看一个iterate的简单例子，然后再解释：
+
+```java
+Stream.iterate(0, n -> n + 2) 
+    .limit(10) 
+    .forEach(System.out::println);
+```
+
+iterate方法接受一个初始值（在这里是0），还有一个依次应用在每个产生的新值上的
+Lambda（UnaryOperator<t>类型）。这里，我们使用Lambda n -> n + 2，返回的是前一个元
+素加上2
+
+> 这种iterate操作基本上是顺序的，因为结果取决于前一次。此操作将生成一个无限流——这个流没有结尾，因为值是
+  按需计算的，可以永远计算下去。这个流是无界的。
+  
+来看一个难一点儿的应用iterate的例子，如下：
+
+> 斐波那契元组序列
+>
+>斐波那契序列是经典编程练习。下面这个数列就是斐波那契序列的一部分：0, 1, 1, 
+ 2, 3, 5, 8, 13, 21, 34, 55…数列中开始的两个数字是0和1，后面的每个数字都是前两个数字之和。
+>
+> 斐波那契元组序列与此类似，是数列中数字和其后面数字组成的元组构成的序列：(0, 1), 
+ (1, 1), (1, 2), (2, 3), (3, 5), (5, 8), (8, 13), (13, 21) …
+ 你的方法是用iterate方法生成斐波那契元组序列中的前20个元素。
+ 
+> 答案在[这里]()
