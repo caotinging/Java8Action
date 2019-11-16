@@ -1,6 +1,6 @@
 # Java8Action
 ## 目录
- - [为什么要关心java8](#为什么要关心java8)
+ - [为什么要学习java8](#为什么要学习java8)
     - [java8的主要变化](#java8的主要变化)
         - [流处理](#流处理)
         - [用行为参数化把代码传递给方法](#用行为参数化把代码传递给方法)
@@ -68,7 +68,7 @@
         - [由函数生成无限流](#由函数生成无限流)
         
 
-## 为什么要关心java8
+## 为什么要学习java8
 ### java8的主要变化
 #### 流处理
 Java 8在java.util.stream中添加了一个Stream API；你现在可以把它看成一种比较花哨的迭代器。
@@ -1976,3 +1976,169 @@ IntStream.generate(fib).limit(10).forEach(System.out::println);
 > 你应该始终采用不改变属性（状态）的方法，以便并行处理流，并保持结果正确
 
 [回顶部](#目录)
+
+## 用流收集数据
+
+下面是一些查询的例子，看看你用collect和收集器能够做什么？
+- 对一个交易列表按货币分组，获得该货币的所有交易额总和（返回一个Map<Currency, Integer>）
+- 将交易列表分成两组：贵的和不贵的（返回一个Map<Boolean, List<Transaction>>）
+- 创建多级分组，比如按城市对交易分组，然后进一步按照贵的或不贵的分组（返回一个Map<Boolean, List<Transaction>>）。
+
+java7中你可能很快就能实现上面的需求，如下
+
+```java
+Map<Currency, List<Transaction>> transactionsByCurrencies = new HashMap<>();
+
+for (Transaction transaction : transactions) { 
+    Currency currency = transaction.getCurrency();
+    List<Transaction> transactionsForCurrency = transactionsByCurrencies.get(currency); 
+    
+    if (transactionsForCurrency == null) { 
+        transactionsForCurrency = new ArrayList<>();
+        
+        transactionsByCurrencies.put(currency, transactionsForCurrency);
+        transactionsForCurrency.add(transaction); 
+    }
+}
+```
+
+如果你是一位经验丰富的Java程序员，写这种东西可能挺顺手的，不过你必须承认，做这么
+简单的一件事就得写很多代码。更糟糕的是，读起来比写起来更费劲！代码的目的并不容易看出
+来，尽管换作白话的话是很直截了当的：“把列表中的交易按货币分组。”
+
+用Stream中collect方法的一个更通用的Collector参数，你就可以用一句话实现完全相同的结果
+
+```java
+Map<Currency, List<Transaction>> transactionsByCurrencies = transactions.stream().collect(groupingBy(Transaction::getCurrency));
+```
+
+这一比差的还真多
+
+[回顶部](#目录)
+
+### 收集器简介
+
+指令式编程的一个主要优势：你只需指出希望的结果——“做什么”，而不用操心执行的步骤——“如何做”
+传递给collect方法的参数是Collector接口的一个实现，也就是给Stream中元素做汇总的方法。
+toList只是说“按顺序给每个元素生成一个列表”；在本例中，groupingBy说的是“生成一个
+Map，它的键(key)是（货币）桶，值(value)则是桶中那些元素的集合”
+
+#### 收集器用作高级归约
+
+如图所示收集器所作所做的工作和前面java7的指令式代码一样。它遍历流中的每个元素，并让Collector进行处理
+
+![按货币对交易分组的过程图](http://clevercoder.cn/blogs/image/20191116175744.png)
+
+> 一般来说，Collector会对元素应用一个转换函数，并将结果存储在一个数据结构中，从而产生这一过程的最终输出。例如，在前面
+  所示的交易分组的例子中，转换函数提取了每笔交易的货币，随后使用货币作为键，将交易本身累积存储在生成的Map中。
+  
+**预定义收集器**
+
+预定义收集器（即系统自带的收集器）的功能，也就是那些可以从Collectors类提供的工厂方法（例如groupingBy）创建的收集器。它们主要提供了三大功能：
+- 将流元素归约和汇总为一个值
+- 元素分组
+- 元素分区
+
+### 归约和汇总
+
+我们先来举一个简单的例子，利用counting工厂方法返回的收集器，数一数菜单里有多少种菜：
+```java
+long howManyDishes = menu.stream().collect(Collectors.counting());
+```
+
+这还可以写得更为直接：
+```java
+long howManyDishes = menu.stream().count();
+```
+
+在后面的部分，我们假定你已导入了Collectors类的所有静态工厂方法：
+import static java.util.stream.Collectors.*; 
+这样你就可以写counting()而用不着写Collectors.counting()之类的了。
+
+#### 查找流中的最大值和最小值
+
+假设你想要找出菜单中热量最高的菜。你可以使用两个收集器，Collectors.maxBy和Collectors.minBy，来计算流中的最大或最小值。
+这两个收集器接收一个Comparator参数来比较流中的元素。
+```java
+Comparator<Dish> dishCaloriesComparator = Comparator.comparingInt(Dish::getCalories); 
+
+Optional<Dish> mostCalorieDish = menu.stream() 
+                                    .collect(maxBy(dishCaloriesComparator));
+```
+
+#### 汇总
+
+Collectors类专门为汇总提供了一个工厂方法：Collectors.summingInt。它可接受一
+个把对象映射为求和所需int的函数，并返回一个收集器；该收集器在传递给普通的collect方法后即执行我们需要的汇总操作。
+
+举个例子来说，你可以这样求出菜单列表的总热量：
+```java
+int totalCalories = menu.stream().collect(summingInt(Dish::getCalories));
+```
+
+这里的收集过程如下图所示。在遍历流时，会把每一道菜都映射为其热量，然后把这个数字累加到一个累加器里（这里的初始值0）。
+
+![summingInt收集器的累积过程图](http://clevercoder.cn/blogs/image/20191116182122.png)
+
+> Collectors.summingLong和Collectors.summingDouble方法的作用完全一样，可以用
+于求和字段为long或double的情况
+
+**求平均值**
+
+汇总不仅仅是求和；还有Collectors.averagingInt，连同对应的averagingLong和
+averagingDouble可以计算数值的平均数：
+
+```java
+// 计算菜的平均热量
+double avgCalories = menu.stream().collect(averagingInt(Dish::getCalories));
+```
+
+**一次性汇总操作**
+
+一次操作即可获取集合中元素的个数，总和，平均数，最大值最小值等
+
+你可以使用summarizingInt工厂方法返回的收集器。例如，通过一次summarizing操作你可以就数出菜单中元素的个数，并得
+到菜单热量总和、平均值、最大值和最小值：
+
+```java
+IntSummaryStatistics menuStatistics = menu.stream().collect(summarizingInt(Dish::getCalories));
+```
+
+这个收集器会把所有这些信息收集到一个叫作IntSummaryStatistics的类里，它提供了
+方便的取值（getter）方法来访问结果。打印menuStatisticobject会得到以下输出：
+
+```java
+IntSummaryStatistics{count=9, sum=4300, min=120, average=477.777778, max=800}
+```
+
+> 同样，相应的summarizingLong和summarizingDouble工厂方法有相关的LongSummaryStatistics和DoubleSummaryStatistics类型，适用于收集的属性是原始类型long或
+  double的情况。
+  
+#### 连接字符串
+
+joining工厂方法返回的收集器会把对流中每一个对象应用toString方法得到的所有字符
+串连接成一个字符串。这意味着你把菜单中所有菜单的名称连接起来，如下所示：
+
+```java
+String shortMenu = menu.stream().map(Dish::getName).collect(joining());
+```
+
+oining在内部使用了StringBuilder来把生成的字符串逐个追加起来。此外，如果Dish类的toString方法返回菜单的名称，那你无需用提取每一道菜的名称的
+函数来对原流做映射就能够得到相同的结果：
+
+```java
+String shortMenu = menu.stream().collect(joining());
+```
+
+两者均可产生字符串: porkbeefchickenfrench friesriceseason fruitpizzaprawnssalmon
+
+该字符串的可读性并不好。joining工厂方法有一个重载版本可以接受元素之间的
+分界符，这样你就可以得到一个带有逗号分隔的菜肴名称列表：
+
+```java
+String shortMenu = menu.stream().map(Dish::getName).collect(joining(", "));
+```
+它会生成：pork, beef, chicken, french fries, rice, season fruit, pizza, prawns, salmon
+
+[回顶部](#目录)
+
