@@ -2142,3 +2142,98 @@ String shortMenu = menu.stream().map(Dish::getName).collect(joining(", "));
 
 [回顶部](#目录)
 
+#### 广义的归约汇总
+
+事实上，我们已经讨论的所有收集器，都可以用reducing工厂方法Collectors.reducing工厂方法实现。
+可以说，前面讨论的只是提高代码可读性。
+
+例如，可以用reducing方法创建的收集器来计算菜单的总热量，如下所示：
+
+```java
+int totalCalories = menu.stream().collect(reducing( 0, Dish::getCalories, (i, j) -> i + j));
+```
+
+它需要三个参数:
+- 第一个参数是归约操作的起始值，也是流中没有元素时的返回值.
+- 第二个参数就是收集操作中的转换函数。
+- 第三个参数是一个BinaryOperator，将上一次操作返回的值和当前元素收集成一个同类型的值
+
+同样，你可以使用下面这样单参数形式的reducing来找到热量最高的菜，如下所示：
+
+```java
+Optional<Dish> mostCalorieDish = menu.stream()
+          .collect(reducing((d1, d2) -> d1.getCalories() > d2.getCalories() ? d1 : d2));
+```
+
+**reduce和collect的区别**
+
+reduce和collect方法通常可以获得同样的结果，例如，你可以用如下的方式用reduce方法来实现toListCollector所做的工作：
+
+```java
+Stream<Integer> stream = Arrays.asList(1, 2, 3, 4, 5, 6).stream(); 
+List<Integer> numbers = stream.reduce( 
+        new ArrayList<Integer>(),(List<Integer> l, Integer e) -> { 
+                                                        l.add(e); 
+                                                        return l; 
+                                   },
+                (List<Integer> l1, List<Integer> l2) -> { 
+                                            l1.addAll(l2); 
+                                            return l1; 
+        });
+```
+
+这个解决方法有两个问题：
+- reduce方法旨在把两个值结合起来生成一个新值，它是一个不可变的归约。
+- collect方法的设计就是要改变容器，累积出要的结果。
+
+这意味着，上面的代码是在滥用reduce方法，因为它在原地改变了作为容器的List。
+
+错误的使用reduce方法还会造成一个实际问题：这个归约过程不能并行工作，因为由多个线程并发
+修改同一个数据结构可能会破坏List本身。在这种情况下，想要线程安全，就必须要每次分配一个新的List，而对象分配又会影响性能。
+这就是collect方法更适合表达可变容器上的归约的原因，它更适合并行操作。
+
+1. 收集器的灵活性：以不同的方法执行同样的操作
+
+你还可以进一步简化前面使用reducing收集器的求和例子——引用Integer类的sum方法
+
+```java
+// reducing(初始值,转换函数,累积函数)
+int totalCalories = menu.stream().collect(reducing(0,Dish::getCalories,Integer::sum));
+```
+
+![](http://clevercoder.cn/blogs/image/2019-11-18_22-25-41.png)
+
+counting收集器也是类似地利用三参数reducing工厂方法实现的。它把流中的每个元素都转换成一个值为1的Long型对象，然后再把它们相加：
+```java
+public static <T> Collector<T, ?, Long> counting() { 
+    return reducing(0L, e -> 1L, Long::sum); 
+}
+```
+
+**使用泛型 ？通配符**
+
+在刚刚提到的代码片段中，？通配符它用作counting工厂方法返回的收集器签名中的第二个泛型类型。在这里，
+它仅仅意味着收集器的累加器类型未知，即，累加器本身可以是任何类型。
+
+还有另一种方法不使用收集器也能执行相同操作
+
+```java
+int totalCalories = menu.stream().map(Dish::getCalories).reduce(Integer::sum).get();
+```
+
+更简洁的方法是把流映射到一个IntStream，然后调用sum方法：
+
+```java
+int totalCalories = menu.stream().mapToInt(Dish::getCalories).sum();
+```
+
+2. 根据情况选择最佳解决方案
+
+函数式编程通常提供了多种方法来执行同一个操作.
+收集器在某种程度上比Stream接口上直接提供的方法用起来更复杂，但好处在于它们能提供更高水平的抽象和概
+括，也更容易重用和自定义。
+
+> 尽可能为问题探索不同的解决方案，但在通用的方案里面，始终选择最专门化的一个。无论是从可读性还是性能上看，
+这一般都是最好的决定。例如，要计算菜单的总热量，我们更倾向于最后一个解决方案（使用IntStream），因为它最简明，也很可能最易读。
+同时，它也是性能最好的一个，因为IntStream可以让我们避免自动装箱操作。
+
