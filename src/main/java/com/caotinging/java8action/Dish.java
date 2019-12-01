@@ -1,4 +1,4 @@
-package com.caotinging.java8action.chap4;
+package com.caotinging.java8action;
 
 import java.util.Arrays;
 import java.util.List;

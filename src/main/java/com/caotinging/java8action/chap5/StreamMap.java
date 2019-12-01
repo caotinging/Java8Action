@@ -1,6 +1,6 @@
 package com.caotinging.java8action.chap5;
 
-import com.caotinging.java8action.chap4.Dish;
+import com.caotinging.java8action.Dish;
 
 import java.util.List;
 import java.util.stream.Collectors;

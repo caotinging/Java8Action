@@ -1,5 +1,7 @@
 package com.caotinging.java8action.chap4;
 
+import com.caotinging.java8action.Dish;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
