@@ -2237,3 +2237,6 @@ int totalCalories = menu.stream().mapToInt(Dish::getCalories).sum();
 这一般都是最好的决定。例如，要计算菜单的总热量，我们更倾向于最后一个解决方案（使用IntStream），因为它最简明，也很可能最易读。
 同时，它也是性能最好的一个，因为IntStream可以让我们避免自动装箱操作。
 
+[回顶部](#目录)
+
+#### 分组

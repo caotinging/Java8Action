@@ -21,8 +21,34 @@ public class StreamCollect {
 
     public static void main(String[] args) {
         //test2();
-        test3();
-        testReduce();
+        //test3();
+        //testReduce();
+        testReplaceJoining();
+    }
+
+    /**
+     * 哪些reducing收集器语句可以替代：
+     * String shortMenu = menu.stream().map(Dish::getName).collect(joining());
+     */
+    private static void testReplaceJoining() {
+
+        String result1 = menu.stream()
+                .map(Dish::getName)
+                .reduce((m1, m2) -> m1 +"," + m2)
+                .get();
+
+        System.out.println(result1);
+
+        String result = menu.stream()
+                .map(Dish::getName)
+                .collect(Collectors.joining(","));
+
+        System.out.println(result);
+
+        String result2 = menu.stream()
+                .collect(Collectors.reducing("", Dish::getName, (d1, d2) -> d1 + "," + d2));
+
+        System.out.println(result2);
     }
 
     /**
