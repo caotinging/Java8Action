@@ -2239,4 +2239,84 @@ int totalCalories = menu.stream().mapToInt(Dish::getCalories).sum();
 
 [回顶部](#目录)
 
-#### 分组
+### 分组
+
+假设你要把菜单中的菜肴按照类型进行分类，有鱼的放一组，有肉的放一组，其他的都放另一组。用Collectors.groupingBy工厂方法返回
+的收集器就可以轻松地完成这项任务：
+
+```java
+Map<Dish.Type, List<Dish>> dishesByType = menu.stream().collect(groupingBy(Dish::getType));
+```
+
+其结果是下面的map：
+
+```java
+{
+    FISH=[prawns, salmon], 
+    OTHER=[french fries, rice, season fruit, pizza], 
+    MEAT=[pork, beef, chicken]
+}
+```
+
+这里，你给groupingBy方法传递了一个Function（以方法引用的形式），它提取了流中每
+一道Dish的Dish.Type。这个Function叫作分类函数，用来把流中的元素分成不同的组。
+
+> 你想用以分类的条件可能比简单的属性访
+  问器要复杂。例如，你可能想把热量不到400卡路里的分为“低བ量”（diet），400到700
+  卡路里的分为“普通”（normal），高于700卡路里的为“高热量”（fat）。由于Dish类的作者
+  没有把这个操作写成一个方法，你无法使用方法引用，但你可以把这个逻辑写成Lambda表达式：
+  
+```java
+public enum CaloricLevel { DIET, NORMAL, FAT } 
+
+Map<CaloricLevel, List<Dish>> dishesByCaloricLevel = 
+    menu.stream()
+        .collect( 
+            groupingBy(dish -> { 
+                if (dish.getCalories() <= 400) return CaloricLevel.DIET; 
+                else if (dish.getCalories() <= 700) return CaloricLevel.NORMAL; 
+                else return CaloricLevel.FAT; 
+            })
+ );
+```
+
+你已经看到了如何对菜单按照类型和热量进行分组，但要是想同时按照这两
+个标准分类怎么办呢？分组的强大之处就在于它可以有效地组合
+
+#### 多级分组
+
+要实现多级分组，我们可以使用一个由双参数版本的Collectors.groupingBy工厂方法创
+建的收集器，它除了普通的分类函数之外，还可以接受collector类型的第二个参数。那么要进
+行二级分组的话，我们可以把一个内层groupingBy传递给外层groupingBy，并定义一个为流
+中项目分类的二级标准
+
+```java
+Map<Dish.Type, Map<CaloricLevel, List<Dish>>> dishesByTypeCaloricLevel = 
+    menu.stream().collect( 
+        groupingBy(Dish::getType, 
+                        groupingBy(dish -> { 
+                                    if (dish.getCalories() <= 400) return CaloricLevel.DIET; 
+                                    else if (dish.getCalories() <= 700) return CaloricLevel.NORMAL;
+                                    else return CaloricLevel.FAT; 
+                                 } ) 
+                 ) 
+);
+```
+
+这个二级分组的结果就是像下面这样的两级Map：
+
+```java
+{
+    MEAT={DIET=[chicken], NORMAL=[beef], FAT=[pork]}, 
+    FISH={DIET=[prawns], NORMAL=[salmon]}, 
+    OTHER={DIET=[rice, seasonal fruit], NORMAL=[french fries, pizza]}
+}
+```
+
+这里的外层Map的键就是第一级分类函数生成的值：“fish, meat, other”，而这个Map的值又是
+一个Map，键是二级分类函数生成的值：“normal, diet, fat”。
+
+最后，第二级map的值是流中元素构
+成的List，是分别应用第一级和第二级分类函数所得到的对应第一级和第二级键的值：“salmon、
+pizza…”这种多级分组操作可以扩展至任意层级，n级分组就会得到一个代表n级树形结构的n级
+Map。
