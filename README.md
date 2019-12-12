@@ -2316,7 +2316,123 @@ Map<Dish.Type, Map<CaloricLevel, List<Dish>>> dishesByTypeCaloricLevel =
 这里的外层Map的键就是第一级分类函数生成的值：“fish, meat, other”，而这个Map的值又是
 一个Map，键是二级分类函数生成的值：“normal, diet, fat”。
 
-最后，第二级map的值是流中元素构
-成的List，是分别应用第一级和第二级分类函数所得到的对应第一级和第二级键的值：“salmon、
-pizza…”这种多级分组操作可以扩展至任意层级，n级分组就会得到一个代表n级树形结构的n级
-Map。
+最后，第二级map的值是流中元素构成的List，是分别应用第一级和第二级分类函数所得到的对应第一级和第二级键的值：“salmon、
+pizza…”这种多级分组操作可以扩展至任意层级，n级分组就会得到一个代表n级树形结构的n级Map。
+
+![](http://clevercoder.cn/github/image/2019-12-12_11-12-31.png)
+
+#### 按子组收集数据
+
+传递给第一个groupingBy的第二个收集器可以是任何类型，要数一数菜单中每类菜有多少个，可以传递counting收集器作为
+groupingBy收集器的第二个参数：
+
+```java
+Map<Dish.Type, Long> typesCount = menu.stream().collect(groupingBy(Dish::getType, counting()));
+```
+
+其结果是下面的Map：
+
+```java
+{MEAT=3, FISH=2, OTHER=4}
+```
+
+还要注意，普通的单参数groupingBy(f)（其中f是分类函数）实际上是groupingBy(f, toList())的简便写法
+
+例如：
+按照菜的类型分类获取每个类型下最高热量的菜：
+
+```java
+Map<Dish.Type, Optional<Dish>> mostCaloricByType = 
+     menu.stream() 
+        .collect(groupingBy(Dish::getType, maxBy(comparingInt(Dish::getCalories))));
+```
+
+结果如下：
+```java
+{FISH=Optional[salmon], OTHER=Optional[pizza], MEAT=Optional[pork]}
+```
+
+> 注意：
+> 这个Map中的值是Optional，因为这是maxBy工厂方法生成的收集器的类型，但实际上，
+  如果菜单中没有某一类型的Dish，这个类型就不会对应一个Optional.empty()值，
+  而且根本不会出现在Map的键中。groupingBy收集器只有在应用分组条件后后，第一次在
+  流中找到某个键对应的元素时才会把该键加入分组Map中。这意味着Optional包装器在这
+  里不是很有用。
+  
+**1.把收集器的结果转换为另一种类型**
+
+因为分组操作的Map结果中的每个值上包装的Optional没什么用，所以你可能想要把它们
+去掉，简言之就是把收集器返回的结果转换为另一种类型，你可以使用
+Collectors.collectingAndThen工厂方法返回的收集器，如下所示。
+
+```java
+Map<Dish.Type, Dish> mostCaloricByType = 
+        menu.stream() 
+            .collect(groupingBy(Dish::getType, 
+                         collectingAndThen(
+                                 maxBy(comparingInt(Dish::getCalories)), 
+                                 Optional::get)));
+```
+
+这个工厂方法接受两个参数——要转换的收集器以及转换函数，并返回另一个收集器。这个
+收集器相当于旧收集器的一个包装，collect操作的最后一步就是将返回值用转换函数做一个映射。
+在这里，被包起来的收集器就是用maxBy建立的那个，而转换函数Optional::get则把返回的Optional中的值提取出来
+
+结果如下:
+
+```java
+{FISH=salmon, OTHER=pizza, MEAT=pork}
+```
+
+**2.与groupingBy联合ֵ用的其他收集器的例子**
+
+例如，还可以联合使用对所有同类型的菜肴热量求和的收集器：
+
+```java
+Map<Dish.Type, Integer> totalCaloriesByType = 
+                        menu.stream().collect(groupingBy(Dish::getType, 
+                                                        summingInt(Dish::getCalories)));
+```
+
+常常和groupingBy联合使用的另一个收集器是mapping方法.
+
+这个方法接受两个参数：一个函数对流中的元素做变换，另一个则将变换的结果对象收集起来
+
+我们来看一个使用这个收集器的实际例子。比方说你想要知道，对于每种类型的Dish，
+菜单中都有哪些CaloricLevel。我们可以把groupingBy和mapping收集器结合起来，如下所示：
+
+```java
+Map<Dish.Type, Set<CaloricLevel>> caloricLevelsByType = 
+    menu.stream().collect( 
+            groupingBy(Dish::getType, mapping( 
+                                dish -> { 
+                                    if (dish.getCalories() <= 400) return CaloricLevel.DIET; 
+                                        else if (dish.getCalories() <= 700) return CaloricLevel.NORMAL; 
+                                            else return CaloricLevel.FAT; }, 
+                                    toSet())));
+```
+
+这里，就像我们前面见到过的，传递给映射方法的转换函数将Dish映射成了它的
+CaloricLevel：生成的CaloricLevel流传递给一个toSet收集器，以便仅保留各不相同的值。得到这样的Map结果：
+
+```java
+{OTHER=[DIET, NORMAL], MEAT=[DIET, NORMAL, FAT], FISH=[DIET, NORMAL]}
+```
+
+> 请注意在上
+  一个示例中，对于返回的Set是什么类型并没有任何保证。但通过使用toCollection，你就可
+  以有更多的控制。例如，你可以给它传递一个构造函数引用来要求HashSet：
+  
+```java
+Map<Dish.Type, Set<CaloricLevel>> caloricLevelsByType = 
+  menu.stream().collect( 
+    groupingBy(Dish::getType, mapping( 
+                 dish -> { if (dish.getCalories() <= 400) return CaloricLevel.DIET; 
+                            else if (dish.getCalories() <= 700) return CaloricLevel.NORMAL; 
+                                else return CaloricLevel.FAT; }, 
+                        toCollection(HashSet::new) )));
+```
+
+[回顶部](#目录)
+
+### 分区
