@@ -2436,3 +2436,128 @@ Map<Dish.Type, Set<CaloricLevel>> caloricLevelsByType =
 [回顶部](#目录)
 
 ### 分区
+
+分区是分组的特殊情况：由一个谓词（返回一个布尔值的函数）作为分类函数，它称分区函
+数。分区函数返回一个布尔值，这意味着得到的分组Map的键类型是Boolean，于是它最多可以
+分为两组——true是一组，false是一组。例如，你想将菜单中素食和非素食分开：
+
+```java
+Map<Boolean, List<Dish>> partitionedMenu = 
+    menu.stream().collect(partitioningBy(Dish::isVegetarian));
+```
+
+这会返回下面的Map：
+
+```java
+{
+    false=[pork, beef, chicken, prawns, salmon], 
+    true=[french fries, rice, season fruit, pizza]
+}
+```
+
+那么通过Map中键为true的值，就可以找出所有的素菜了：
+
+```java
+List<Dish> vegetarianDishes = partitionedMenu.get(true);
+```
+
+用同样的分区谓词，对菜单List创建的流作筛选，然后把结果收集到另外一个List
+中也可以获得相同的结果：
+
+```java
+List<Dish> vegetarianDishes = 
+    menu.stream().filter(Dish::isVegetarian).collect(toList());
+```
+
+#### 分区的优势
+
+分区的好处在于保留了分区函数返回true或false的两套流元素列表。在上一个例子中，当你想获得素食和非素食两个集合时。
+分区函数的优势就表现出来了。
+
+并且partitioningBy工厂方法有一个重载版本，可以像下面这样传递第二个收集器：
+
+```java
+Map<Boolean, Map<Dish.Type, List<Dish>>> vegetarianDishesByType = 
+        menu.stream().collect( 
+                        partitioningBy(Dish::isVegetarian, 
+                                    groupingBy(Dish::getType)));
+```
+
+这将产生一个二级Map：
+
+```java
+{
+    false={
+            FISH=[prawns, salmon], 
+            MEAT=[pork, beef, chicken]
+            },
+    true={
+            OTHER=[french fries, rice, season fruit, pizza]
+    }
+}
+```
+
+这里，对于分区产生的素食和非素食子流，分别按类型对类型分组，得到了一个二级Map。
+再举一个例子，你可以重用前面的代码来找到素食和非素食中热量最高的菜：
+
+```java
+Map<Boolean, Dish> mostCaloricPartitionedByVegetarian = 
+    menu.stream().collect( 
+            partitioningBy(Dish::isVegetarian, 
+                collectingAndThen( 
+                    maxBy(comparingInt(Dish::getCalories)), 
+                        Optional::get)));
+```
+
+这将产生以下结果：
+
+```java
+{false=pork, true=pizza}
+```
+
+#### 将数字按质数和非质数区分
+
+假设你要写一个方法，它接受参数int n，并将前n个自然数分为质数和非质数。
+首先，编写能测试一个int是否为质数的谓词函数
+
+```java
+public boolean isPrime(int candidate) {
+    //判断 从2开始到参数为止（不包括本身）的所有数是否都不能被该参数整除，如果都不能返回true--为质数
+    return IntStream.range(2, candidate).noneMatch(i -> candidate % i == 0); 
+}
+```
+
+简单的优化一下上述函数：
+
+```java
+public boolean isPrime(int candidate) { 
+    // 仅测试小于等于待测数平方根的因子：
+    int candidateRoot = (int) Math.sqrt((double) candidate); 
+    return IntStream.rangeClosed(2, candidateRoot).noneMatch(i -> candidate % i == 0); 
+}
+```
+
+现在最主要的一部分工作已经做好了。为了把前n个数字分为质数和非质数，只要创建一
+个包含这n个数的流，用已经写好的isPrime方法作为谓词，再给partitioningBy收集器收集归约就好了：
+
+```java
+public Map<Boolean, List<Integer>> partitionPrimes(int n) { 
+    return IntStream.rangeClosed(2, n).boxed() 
+                                    .collect(partitioningBy(candidate -> isPrime(candidate))); 
+}
+```
+
+现在我们已经讨论过了Collectors类的静态工厂方法能够创建的所有收集器，并介绍了使
+用它们的实际例子。下表将它们汇总到一起，给出了它们应用到Stream<T>上返回的类型，以
+及它们用于一个叫作menuStream的Stream<Dish>上的实际例子。
+
+[回顶部](#目录)
+
+##### Collectors收集器汇总表
+
+![](http://clevercoder.cn/github/image/2019-12-13_18-17-38.png)
+![](http://clevercoder.cn/github/image/2019-12-13_18-18-21.png)
+
+[回顶部](#目录)
+
+### 收集器接口
