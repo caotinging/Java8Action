@@ -2561,3 +2561,192 @@ public Map<Boolean, List<Integer>> partitionPrimes(int n) {
 [回顶部](#目录)
 
 ### 收集器接口
+
+自定义Collector接口，首先需要了解源码结构：
+
+```java
+//Collector接口
+public interface Collector<T, A, R> { 
+    Supplier<A> supplier(); 
+    BiConsumer<A, T> accumulator(); 
+    Function<A, R> finisher(); 
+    BinaryOperator<A> combiner(); 
+    Set<Characteristics> characteristics(); 
+}
+```
+本列表适用以下定义。
+- T是流中要收集的项目的泛型。
+- A是累加器的类型，累加器是在收集过程中用于收集部分结果的对象。
+- R是收集操作得到的对象（通常但并不一定是集合）的类型。
+
+例如，你可以实现一个ToListCollector<T>类，将Stream<T>中的所有元素收集到一个List<T>里，它的签名如下：
+```public class ToListCollector<T> implements Collector<T, List<T>, List<T>> ```
+
+这里用于累积的对象也将是收集过程的最终结果。
+
+#### 理解收集器接口的方法
+
+**1、建立新的结果容器：supplier方法**
+
+supplier方法必须返回一个结果为空的Supplier，也就是一个无参数函数，在调用时它会
+创建一个空的累加器实例，供数据收集过程使用：
+
+```java
+public Supplier<List<T>> supplier() { 
+    return () -> new ArrayList<T>(); 
+}
+
+//也可以只传递一个构造函数引用：
+public Supplier<List<T>> supplier() { 
+    return ArrayList::new; 
+}
+```
+
+**2、将元素添加到结果容器：accumulator方法**
+
+accumulator方法会返回执行累加操作的函数。当遍历到流中第n个元素时，这个函数执行
+时会有两个参数：保存累加结果的累加器（已收集了流中的前 n-1 个项目），还有第n个元素本身。
+
+```java
+public BiConsumer<List<T>, T> accumulator() { 
+    return List::add; 
+}
+```
+
+**3、对结果容器用最终转换：finisher方法**
+
+在遍历完流后，finisher方法必须返回在ጌሤ过程的最后要调用的一个函数，以便将ጌ加
+器对象转换为整个集合操作的最终结果：
+
+像ToListCollector的情况一样，累加器对象刚好符合预期的最终结果，因此无需进行转换。所以finisher方法只需返回identity函数：
+
+```java
+public Function<List<T>, List<T>> finisher() { 
+ return Function.identity(); 
+}
+```
+
+> 通常这三个方法就足以对流进行顺序归约，但是往往需要对流进行并行操作。这三个方法的归约流程大概如下：
+
+![](http://clevercoder.cn/github/image/20191217172903.png)
+
+**4、合并多个结果容器：combiner方法**
+
+四个方法中的最后一个——combiner方法会返回一个供归约操作使用的函数，它定义了对
+流的各个子部分进行并行处理时，各个子部分归约所得的累加器要如何合并。对于toList而言，
+这个方法的实现非常简单，只要把从流的第二个部分收集到的项目列表加到遍历第一部分时得到
+的列表后面就行了：
+
+```java
+public BinaryOperator<List<T>> combiner() { 
+    return (list1, list2) -> { 
+        list1.addAll(list2); 
+        return list1; 
+    } 
+}
+```
+
+- 原始流会以递归方式划分为子流，直到定义流是否需要进一步划分的一个条件为非（如
+果分布式工作单位太小，并行计算往往比顺序计算要慢，而且要是生成的并行任务比处
+理器内核数多很多的话就毫无意义了）。
+- 现在，所有的子流都可以并行处理，即对每个子流应用顺序归约算法。
+- 最后，使用收集器combiner方法返回的函数，将所有的部分结果两两合并。这时会把原
+始流每次划分时得到的子流对应的归约结果合并起来。
+
+**5、characteristics方法**
+
+最后一个方法——characteristics会返回一个不可变的Characteristics集合，它定义
+了收集器的行为——尤其是关于流是否可以并行归约，以及可以使用哪些优化的提示。
+Characteristics是一个包含三个项目的枚举。
+
+- UNORDERED——归约结果不受流中项目的遍历和累积顺序的影响。
+- CONCURRENT——accumulator函数可以从多个线程同时调用，且该收集器可以并行归约流。
+如果收集器没有标为UNORDERED，那它仅在用于无序数据源时才可以并行归约。
+- IDENTITY_FINISH——这表明完成器方法返回的函数是一个恒等函数，可以跳过。这种
+情况下，累加器对象将会直接用作归约过程的最终结果。这也意味着，将累加器A不加检查地转换为结果R是安全的。
+
+> 我们迄今开发的ToListCollector是IDENTITY_FINISH的，因为用来累积流中元素的
+  List已经是我们要的最终结果，用不着进一步转换了，但它并不是UNORDERED，因为用在有序
+  流上的时候，我们还是希望顺序能够保留在得到的List中。最后，它是CONCURRENT的，但我们
+  说过了，仅仅在背后的数据源无序时才会并行处理。
+  
+#### 融合完整的ToListCollector
+
+融合前面所介绍的方法实现，足够我们开发自己的toList收集器了，代码如下：
+
+```java
+import java.util.*; 
+import java.util.function.*; 
+import java.util.stream.Collector; 
+import static java.util.stream.Collector.Characteristics.*; 
+public class ToListCollector<T> implements Collector<T, List<T>, List<T>> { 
+    
+    @Override 
+    public Supplier<List<T>> supplier() { 
+        return ArrayList::new; 
+    } 
+    
+    @Override 
+    public BiConsumer<List<T>, T> accumulator() { 
+        return List::add; 
+    } 
+    
+    @Override 
+    public Function<List<T>, List<T>> finisher() { 
+        return Function.indentity(); 
+    } 
+    
+    @Override 
+    public BinaryOperator<List<T>> combiner() { 
+        return (list1, list2) -> { 
+            list1.addAll(list2);
+            return list1; 
+        }; 
+    } 
+    
+    @Override 
+    public Set<Characteristics> characteristics() { 
+        return Collections.unmodifiableSet(EnumSet.of( 
+        IDENTITY_FINISH, CONCURRENT));
+    } 
+}
+```
+
+> 这个实现与Collectors.toList方法并不完全相同，但区别仅仅是一些小的优化。
+ava API所提供的收集器在需要返回空列表时使用了Collections.emptyList()这个单例（singleton）。
+
+```java
+ List<Dish> dishes = menuStream.collect(new ToListCollector<Dish>()); 
+```
+这个实现和标准的
+```java
+List<Dish> dishes = menuStream.collect(toList()); 
+```
+构造之间的其他差异在于toList是一个工厂，而ToListCollector必须用new来实例化
+
+#### 进行自定义收集而不实现Collector接口
+
+对于IDENTITY_FINISH的收集操作，还有一种方法可以得到同样的结果而无需从头实现新
+的Collectors接口.
+
+Stream有一个重载的collect方法可以接受另外三个函数——supplier、
+accumulator和combiner，其语义和Collector接口的相应方法返回的函数完全相同
+
+所以比
+如说，我们可以像下面这样把菜肴流中的项目收集到一个List中：
+
+```java
+List<Dish> dishes = menuStream.collect( 
+    ArrayList::new, // 供应源
+    List::add,      // 累加器
+    List::addAll    // 并行组合器
+ );
+```
+
+这第二种形式虽然比前一个写法更为紧凑和简洁，却不那么易读。此外，以恰当
+的类来实现自己的自定义收集器有助于重用并可避免代码重复。另外这第二个
+collect方法不能传递任何Characteristics，所以它永远都是一个IDENTITY_FINISH和
+CONCURRENT但并非UNORDERED的收集器。
+
+### 开发自定义质数收集器
+
