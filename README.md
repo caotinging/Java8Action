@@ -66,6 +66,27 @@
         - [由数组创建流](#由数组创建流)
         - [由文件生成流](#由文件生成流)
         - [由函数生成无限流](#由函数生成无限流)
+ - [用流收集数据](#用流收集数据)
+    - [收集器简介](#收集器简介)
+        - [收集器用作高级归约](#收集器用作高级归约)
+    - [归约和汇总](#归约和汇总)
+        - [查找流中的最大值和最小值](#查找流中的最大值和最小值)
+        - [汇总](#汇总)
+        - [连接字符串](#连接字符串)
+        - [广义的归约汇总](#广义的归约汇总)
+    - [分组](#分组)
+        - [多级分组](#多级分组)
+        - [按子组收集数据](#按子组收集数据)
+    - [分区](#分区)
+        - [分区的优势](#分区的优势)
+        - [将数字按质数和非质数区分](#将数字按质数和非质数区分)
+        - [Collectors收集器汇总表](#Collectors收集器汇总表)
+    - [收集器接口](#收集器接口)
+        - [理解收集器接口的方法](#理解收集器接口的方法)
+        - [融合完整的ToListCollector](#融合完整的ToListCollector)
+        - [进行自定义收集而不实现Collector接口](#进行自定义收集而不实现Collector接口)
+    - [开发自定义质数收集器](#开发自定义质数收集器)
+        - [自定义质数收集器](#自定义质数收集器)
         
 
 ## 为什么要学习java8
@@ -2039,6 +2060,8 @@ Map，它的键(key)是（货币）桶，值(value)则是桶中那些元素的�
 - 元素分组
 - 元素分区
 
+[回顶部](#目录)
+
 ### 归约和汇总
 
 我们先来举一个简单的例子，利用counting工厂方法返回的收集器，数一数菜单里有多少种菜：
@@ -2065,6 +2088,8 @@ Comparator<Dish> dishCaloriesComparator = Comparator.comparingInt(Dish::getCalor
 Optional<Dish> mostCalorieDish = menu.stream() 
                                     .collect(maxBy(dishCaloriesComparator));
 ```
+
+[回顶部](#目录)
 
 #### 汇总
 
@@ -2114,6 +2139,8 @@ IntSummaryStatistics{count=9, sum=4300, min=120, average=477.777778, max=800}
 > 同样，相应的summarizingLong和summarizingDouble工厂方法有相关的LongSummaryStatistics和DoubleSummaryStatistics类型，适用于收集的属性是原始类型long或
   double的情况。
   
+[回顶部](#目录)
+
 #### 连接字符串
 
 joining工厂方法返回的收集器会把对流中每一个对象应用toString方法得到的所有字符
@@ -2283,6 +2310,8 @@ Map<CaloricLevel, List<Dish>> dishesByCaloricLevel =
 你已经看到了如何对菜单按照类型和热量进行分组，但要是想同时按照这两
 个标准分类怎么办呢？分组的强大之处就在于它可以有效地组合
 
+[回顶部](#目录)
+
 #### 多级分组
 
 要实现多级分组，我们可以使用一个由双参数版本的Collectors.groupingBy工厂方法创
@@ -2320,6 +2349,8 @@ Map<Dish.Type, Map<CaloricLevel, List<Dish>>> dishesByTypeCaloricLevel =
 pizza…”这种多级分组操作可以扩展至任意层级，n级分组就会得到一个代表n级树形结构的n级Map。
 
 ![](http://clevercoder.cn/github/image/2019-12-12_11-12-31.png)
+
+[回顶部](#目录)
 
 #### 按子组收集数据
 
@@ -2469,6 +2500,8 @@ List<Dish> vegetarianDishes =
     menu.stream().filter(Dish::isVegetarian).collect(toList());
 ```
 
+[回顶部](#目录)
+
 #### 分区的优势
 
 分区的好处在于保留了分区函数返回true或false的两套流元素列表。在上一个例子中，当你想获得素食和非素食两个集合时。
@@ -2553,7 +2586,7 @@ public Map<Boolean, List<Integer>> partitionPrimes(int n) {
 
 [回顶部](#目录)
 
-##### Collectors收集器汇总表
+#### Collectors收集器汇总表
 
 ![](http://clevercoder.cn/github/image/2019-12-13_18-17-38.png)
 ![](http://clevercoder.cn/github/image/2019-12-13_18-18-21.png)
@@ -2583,6 +2616,8 @@ public interface Collector<T, A, R> {
 ```public class ToListCollector<T> implements Collector<T, List<T>, List<T>> ```
 
 这里用于累积的对象也将是收集过程的最终结果。
+
+[回顶部](#目录)
 
 #### 理解收集器接口的方法
 
@@ -2669,6 +2704,8 @@ Characteristics是一个包含三个项目的枚举。
   List已经是我们要的最终结果，用不着进一步转换了，但它并不是UNORDERED，因为用在有序
   流上的时候，我们还是希望顺序能够保留在得到的List中。最后，它是CONCURRENT的，但我们
   说过了，仅仅在背后的数据源无序时才会并行处理。
+
+[回顶部](#目录)
   
 #### 融合完整的ToListCollector
 
@@ -2724,6 +2761,8 @@ List<Dish> dishes = menuStream.collect(toList());
 ```
 构造之间的其他差异在于toList是一个工厂，而ToListCollector必须用new来实例化
 
+[回顶部](#目录)
+
 #### 进行自定义收集而不实现Collector接口
 
 对于IDENTITY_FINISH的收集操作，还有一种方法可以得到同样的结果而无需从头实现新
@@ -2769,6 +2808,8 @@ public boolean isPrime(int candidate) {
 ```
 
 还有没有办法来获得更好的性能呢？当然，开发一个自定义收集器即可
+
+[回顶部](#目录)
 
 #### 自定义质数收集器
 
@@ -2864,3 +2905,5 @@ public Map<Boolean, List<Integer>> partitionPrimesWithCustomCollector (int n) {
 
 你看，这样就可以避免为实现Collector接口创建一个全新的类；得到的代码更紧凑，虽然
 可能可读性会差一点，可重用性会差一点。
+
+[回顶部](#目录)
