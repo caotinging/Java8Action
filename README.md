@@ -2748,5 +2748,119 @@ List<Dish> dishes = menuStream.collect(
 collect方法不能传递任何Characteristics，所以它永远都是一个IDENTITY_FINISH和
 CONCURRENT但并非UNORDERED的收集器。
 
+[回顶部](#目录)
+
 ### 开发自定义质数收集器
 
+讨论分区的时候，我们用Collectors类提供的一个方便的工厂方法创建了一个收集
+器，它将前n个自然数划分为质数和非质数，如下所示。
+
+```java
+public Map<Boolean, List<Integer>> partitionPrimes(int n) { 
+    return IntStream.rangeClosed(2, n).boxed() 
+                .collect(partitioningBy(candidate -> isPrime(candidate)); 
+}
+
+public boolean isPrime(int candidate) { 
+    int candidateRoot = (int) Math.sqrt((double) candidate); 
+    return IntStream.rangeClosed(2, candidateRoot) 
+                .noneMatch(i -> candidate % i == 0); 
+}
+```
+
+还有没有办法来获得更好的性能呢？当然，开发一个自定义收集器即可
+
+#### 自定义质数收集器
+
+一个可能的优化是仅仅看看被测试数是不是能够被质数整除。要是除数本身都不是质数就用
+不着测了。所以我们可以仅仅用被测试数之前的质数来测试。完整例子如下：
+
+```java
+/**
+* T: Integer 收集的元素类型为Integer
+* A: Map<Boolean, List<Integer>> 累加器收集结果的类型。
+* R: Map<Boolean, List<Integer>> 收集操作最后的结果类型
+*/
+public class PrimeNumbersCollector implements Collector<Integer, Map<Boolean, List<Integer>>, Map<Boolean, List<Integer>>> { 
+    
+    /**
+    * 创建用作累加器的容器Map。初始化true false两个键的空列表，分别用来收集质数和非质数
+    * @return 
+    */
+    @Override 
+    public Supplier<Map<Boolean, List<Integer>>> supplier() { 
+        return () -> new HashMap<Boolean, List<Integer>>() {{
+                            put(true, new ArrayList<Integer>()); 
+                            put(false, new ArrayList<Integer>()); 
+        }}; 
+    }
+    
+    /**
+    * 实现累加过程：通过调用isPrime函数判断元素是否为质数，并添加到相应的键中
+    * @return 
+    */
+    @Override 
+    public BiConsumer<Map<Boolean, List<Integer>>, Integer> accumulator() { 
+        return (Map<Boolean, List<Integer>> acc, Integer candidate) -> { 
+                    acc.get( isPrime( acc.get(true), candidate) ) 
+                       .add(candidate);
+        }; 
+    }
+    
+    /**
+    * 让收集器并行工作：请注意这个收集器实际上是无法并行工作的，因为isPrime的原因，该算法本身就是顺序的，意味着
+    * 这个combiner方法永远都不会被调用，这里为了示例还是补全方法，
+    * 实际中可以留空，也可以抛出UnsupporteOperationException异常
+    * @return 
+    */
+    @Override 
+    public BinaryOperator<Map<Boolean, List<Integer>>> combiner() {
+        return (Map<Boolean, List<Integer>> map1, Map<Boolean, List<Integer>> map2) -> {
+                    map1.get(true).addAll(map2.get(true)); 
+                    map1.get(false).addAll(map2.get(false)); 
+                    return map1; 
+        }; 
+    } 
+    
+    /**
+    * 因为累加结果就是最后的结果，因此这里也不需要做其他的转化操作。
+    * @return 
+    */
+    @Override 
+    public Function<Map<Boolean, List<Integer>>, Map<Boolean, List<Integer>>> finisher() { 
+        return Function.identity(); 
+    } 
+    
+    /**
+    * 收集器特征值
+    * @return 
+    */
+    @Override 
+    public Set<Characteristics> characteristics() { 
+        return Collections.unmodifiableSet(EnumSet.of(IDENTITY_FINISH));
+    } 
+}
+```
+
+也可以通过collect的重载版本实现这个收集器，如下：
+
+```java
+public Map<Boolean, List<Integer>> partitionPrimesWithCustomCollector (int n) { 
+    IntStream.rangeClosed(2, n).boxed().collect(
+            () -> new HashMap<Boolean, List<Integer>>() {{ 
+                                put(true, new ArrayList<Integer>()); 
+                                put(false, new ArrayList<Integer>()); 
+            }}, 
+            (acc, candidate) -> { acc.get( isPrime(acc.get(true), candidate) ) 
+                                        .add(candidate); 
+            }, 
+            (map1, map2) -> {
+                    map1.get(true).addAll(map2.get(true)); 
+                    map1.get(false).addAll(map2.get(false)); 
+            }
+    ); 
+}
+```
+
+你看，这样就可以避免为实现Collector接口创建一个全新的类；得到的代码更紧凑，虽然
+可能可读性会差一点，可重用性会差一点。
