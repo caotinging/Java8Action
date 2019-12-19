@@ -2907,3 +2907,323 @@ public Map<Boolean, List<Integer>> partitionPrimesWithCustomCollector (int n) {
 可能可读性会差一点，可重用性会差一点。
 
 [回顶部](#目录)
+
+## 并行处理数据与性能
+
+在Java 7之前，并行处理数据集合非常麻烦。
+- 第一，你得明确地把包含数据的数据结构分成若干子部分。
+- 第二，你要给每个子部分分配一个独立的线程。
+- 第三，你需要在恰当的时候对它们进行同步来避免不希望出现的竞争条件，等待所有线程完成，最后把这些部分结果合并起
+来。
+
+Java 7引入了一个叫作分支/合并的框架，让这些操作更稳定、更不易出错。
+
+Stream接口可以让你不用太费力气就能对数据集执行并行操作。它允
+许你声明性地将顺序流变为并行流。此外你还将看到
+流是如何在幕后应用Java 7引入的分支/合并框架的。你还会发现，了解并行流内部是如何工作的
+很重要，因为如果你如果误用这一方面，就可能因误用而得到意外的（很可能是错的）结果。
+
+### 并行流
+
+在前面。我们简要地提到了Stream接口可以让你非常方便地处理它的元素：可以通过对
+收集源调用parallelStream方法来把集合转换为并行流。并行流就是一个把内容分成多个数据
+块，并用不同的线程分别处理每个数据块的流。这样一来，你就可以自动把给定操作的工作负荷
+分配给多核处理器的所有内核，让它们都动起来。让我们用一个简单的例子来体验一下这个思想。
+
+假设你需要写一个方法，接受数字n作为参数，并返回从1到给定参数的所有数字的和。一个
+直接的方法是生成一个数字流，把它限制到给定的数目，然后用对两个
+数字求和的BinaryOperator来归约这个流，如下所示：
+
+```java
+public static long sequentialSum(long n) { 
+    return Stream.iterate(1L, i -> i + 1) 
+             .limit(n) 
+             .reduce(0L, Long::sum);
+}
+```
+
+用更为传统的Java术语来说，这段代码与下面的迭代等价：
+
+```java
+public static long iterativeSum(long n) { 
+    long result = 0; 
+    for (long i = 1L; i <= n; i++) { 
+        result += i; 
+    } 
+    return result; 
+}
+```
+
+这似乎是利用并行处理的好机会，特别是n很大的时候。那怎么入手呢？你要对结果变量进
+行同步吗？用多少个线程呢？谁负责生成数呢？谁来做加法呢？用并行流的话，这问题就简单多了！
+
+[回顶部](#目录)
+
+#### 将顺序流转为并行流
+
+你可以把流转换成并行流，从而让前面的函数归约过程（也就是求和）并行运行————对顺序
+流调用parallel方法：
+
+```java
+public static long parallelSum(long n) { 
+    return Stream.iterate(1L, i -> i + 1) 
+                .limit(n) 
+                .parallel() // 将流转为并行流
+                .reduce(0L, Long::sum); 
+}
+```
+
+在上面的代码中，对流中所有数字求和的过程和以往不同
+之处在于Stream在内部分成了几块。因此可以对不同的块独立并行进行归约操作，
+最后，同一个归约操作会将各个子流的部分归纳结果合并起来，得到整个原始流的归纳结果。
+
+> 请注意，在现实中，对顺序流调用parallel方法并不意味着流本身有任何实际的变化。它
+在内部实际上就是设了一个boolean标志，表示你想让调用parallel之后进行的所有操作都并
+行执行。类似地，你只需要对并行流调用sequential方法就可以把它变成顺序流。
+> 
+> 但最后一次parallel或sequential调用会影响整个流水线。也就是一整个流操作中只会被最后一次的parallel或sequential影响
+
+**配合并行流使用的线程池**
+
+看看流的parallel方法，你可能会想，并行流用的线程是̯哪儿来的？有多少个？怎么自定义这个过程呢？
+
+并行流内部使用了默认的ForkJoinPool（分支/合并框架会提到），它默认的
+线程数量就是你的处理器数量，这个值是由 Runtime.getRuntime().availableProcessors()得到的。
+
+但是你可以通过系统属性 java.util.concurrent.ForkJoinPool.common.parallelism来改变线程池大小，
+如下所示：
+```java
+System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism","12");
+```
+
+这是一个全局设置，因此它将影响代码中所有的并行流。反过来说，目前还无法专为౼个并行流指定这个值。
+一般而言，最好让ForkJoinPool的大小等于处理器数量，除非你有很好的理由，否则强烈建议不要修改。
+
+现在你有三个方法，用三种不同的方式（迭代式、顺序归纳和并行归纳）做完全相同的操作，
+让我们看看谁最快吧！
+
+[回顶部](#目录)
+
+#### 测量流性能
+
+我们声称并行求和方法应该比顺序和迭代方法性能好。然而在软件工程上，靠猜绝对不是什
+么好办法！特别是在优化性能时，你应该始终遵循三个黄金规则：测量，测量，再测量。
+
+测量方法如下所示：
+
+```java
+// 测量队前n个自然数求和的性能
+public long measureSumPerf(Function<Long, Long> adder, long n) { 
+    long fastest = Long.MAX_VALUE; 
+    for (int i = 0; i < 10; i++) { 
+        
+        long start = System.nanoTime(); 
+        long sum = adder.apply(n); 
+        long duration = (System.nanoTime() - start) / 1_000_000; 
+        
+        System.out.println("Result: " + sum); 
+        if (duration < fastest) 
+                fastest = duration; 
+    } 
+    return fastest; 
+}
+```
+
+这个方法接受一个函数和一个long作为参数。它会对传给方法的long应用函数10次，记录
+每次执行的时间（以毫秒为单位），并返回最短的一次执行时间
+
+贴一下ParallelStreams类中三个方法的源码:
+```java
+// 顺序归约版本
+public static long sequentialSum(long n) { 
+    return Stream.iterate(1L, i -> i + 1) 
+                .limit(n) 
+                .reduce(0L, Long::sum);
+}
+
+// 迭代版本
+public static long iterativeSum(long n) { 
+    long result = 0; 
+    for (long i = 1L; i <= n; i++) { 
+        result += i; 
+    } 
+    return result; 
+}
+
+// 并行归约版本
+public static long parallelSum(long n) { 
+    return Stream.iterate(1L, i -> i + 1) 
+                .limit(n) 
+                .parallel() 
+                .reduce(0L, Long::sum); 
+}
+
+```
+
+```java
+// 假设方法都在ParallelStreams中
+System.out.println("Sequential sum done in:" + 
+ measureSumPerf(ParallelStreams::sequentialSum, 10_000_000) + " msecs");
+```
+
+请注意，我们对这个结果应持保留态度。影响执行时间的因素有很多，比如你的电脑支持多
+少个内核。你可以在自己的机器上ᡪ一下这些代码。我们在一台四核英特尔i7 2.3 GHz的MacBook 
+Pro上运行它，输出是这样的：
+
+```java
+Sequential sum done in: 97 msecs
+```
+
+用传统for循环的迭代版本执行起来应该会快很多，因为它更为底层，更重要的是不需要对
+原始类型做任何装箱或拆箱操作。如果你试着测量它的性能，
+
+```java
+System.out.println("Iterative sum done in:" + 
+ measureSumPerf(ParallelStreams::iterativeSum, 10_000_000) + " msecs");
+```
+
+将得到:
+```java
+Iterative sum done in: 2 msecs
+```
+
+现在我们来对函数的并行版本做测试：
+
+```java
+System.out.println("Parallel sum done in: " + 
+ measureSumPerf(ParallelStreams::parallelSum, 10_000_000) + " msecs" );
+```
+
+看看会出现什么情况:
+
+```java
+Parallel sum done in: 164 msecs
+```
+
+这相当令人失望，求和方法的并行版本比顺序版本要慢很多。你如何解释这个意外的结果
+呢？这里实际上有两个问题：
+- iterate生成的是装箱的对象，必须拆箱成数字才能求和；
+- 我们很难把iterate分成多个独立块来并行执行。
+
+第二个问题更有意思一点，因为你必须意识到某些流操作比其他操作更容易并行化。具体来
+说，iterate很难分成能够独立执行的小块，因为每次应用这个函数都要依赖前一次应用的结果，
+
+这意味着，在这个特定情况下，整个进程不是像前面所说的那样进行的；整张数字列表在归纳过程开始时没有准备好。
+因而无法有效的把流划分为小块来并行处理，把流标记成并行，反而给顺序处理增加了开销。它还要把每次求和操作分到一个不同的线程上
+
+这就说明了并行编程可能很复杂，有时候甚至有点违反直觉。如果用得不对（比如采用了一
+个不易并行化的操作，如iterate），它甚至可能让程序的整体性能更差，所以在调用那个看似
+神奇的parallel操作时，了解背后到底发生了什么是很有必要的。
+
+**使用更有针对性的办法**
+
+那到底要怎么利用多核处理器，用流来高效地并行求和呢？
+
+我们在前面讨论了一个叫LongStream.rangeClosed的方法。这个方法与iterate相比有两个优点。
+- LongStream.rangeClosed直接产生原始类型的long数字，没有装箱拆箱的风险
+- LongStream.rangeClosed会生成数字范围，很容易划分为独立的小块。。例如，范围1~20可分为1~5、6~10、11~15和16~20。
+
+让我们先看一下它用于顺序流时的性能如何，看看装箱和拆箱到底要不要紧：
+
+```java
+public static long rangedSum(long n) { 
+    return LongStream.rangeClosed(1, n) 
+                .reduce(0L, Long::sum); 
+}
+```
+
+这一次的输出是：
+```java
+Ranged sum done in: 17 msecs
+```
+
+这个数值流比前面那个用iterate工厂方法生成数字的顺序执行版本要快得多，因为数值流
+避免了那些没必要的自动装箱和拆箱操作。由此可见，选择适当的数据结构往往比并
+行化算法更重要。但要是对这个新版本应用并行流呢？
+
+```java
+public static long parallelRangedSum(long n) { 
+    return LongStream.rangeClosed(1, n) 
+                    .parallel() 
+                    .reduce(0L, Long::sum); 
+}
+```
+
+你会得到：
+```java
+Parallel range sum done in: 1 msecs
+```
+
+终于，我们得到了一个比顺序执行更快的并行归纳，因为这一次归纳操作可以正确
+执行了。这也表明，使用正确的数据结构然后使其并行工作能够保证最佳的性能。
+
+尽管如此，请记住，并行化并不是没有代价的。并行化过程本身需要对流做递归划分，把每
+个子流的归纳操作分配到不同的线程，然后把这些操作的结果合并成一个值。但在多个内核之间
+移动数据的代价也可能比你想的要大，所以很重要的一点是要保证在内核中并行执行工作的时间
+比在内核之间传输数据的时间长。总而言之，很多情况下不可能或不方便并行化。然而，在使用
+并行Stream加速代码之前，你必须确保用得对；如果结果错了，算得快就毫无意义了。让我们
+来看一个常见的陷阱。
+
+[回顶部](#目录)
+
+#### 避免共享可变状态
+
+错用并行流而产生错误的首要原因，就是使用的算法改变了某些共享状态。下面是另一种实
+现对前n个自然数求和的方法，但这会改变一个共享累加器：
+
+```java
+public static long sideEffectSum(long n) { 
+    Accumulator accumulator = new Accumulator(); 
+    LongStream.rangeClosed(1, n).forEach(accumulator::add); 
+    return accumulator.total; 
+} 
+public class Accumulator { 
+    public long total = 0; 
+    public void add(long value) { total += value; } 
+}
+```
+
+这种代码有什么问题呢？不幸的是，它真的无可救药，因为它在本质上就是顺序的。每
+次访问total都会出现数据竞争。如果你试图用同步来修复，那就完全失去并行的意义了。为了
+说明这一点，让我们试着把Stream变成并行的：
+
+```java
+public static long sideEffectParallelSum(long n) { 
+    Accumulator accumulator = new Accumulator(); 
+    LongStream.rangeClosed(1, n).parallel().forEach(accumulator::add); 
+    return accumulator.total; 
+}
+```
+
+用测试框架来执行这个方法，并打印每次执行的结果：
+
+```java
+System.out.println("SideEffect parallel sum done in: " + 
+    measurePerf(ParallelStreams::sideEffectParallelSum, 10_000_000L) +" msecs" );
+```
+
+你可能会得到类似于下面这种输出：
+
+```java
+Result: 5959989000692 
+Result: 7425264100768 
+Result: 6827235020033 
+Result: 7192970417739 
+Result: 6714157975331 
+Result: 7497810541907 
+Result: 6435348440385 
+Result: 6999349840672 
+Result: 7435914379978
+Result: 7715125932481 
+SideEffect parallel sum done in: 49 msecs
+```
+
+这回方法的性能无关紧要了，要紧的是每次执行都会返回不同的结果，都离正确值
+50000005000000差很远。这是由于多个线程在同时访问累加器，执行total += value，而这
+一句虽然看似简单，却不是一个原子操作。
+
+问题的根源在于，forEach中调用的方法有副作用，它会改变多个线程共享的对象的可变状态。
+要是你想用并行Stream又不想引发类似的意外，就必须避免这种情况。
+
+#### 高效使用并行流
+
