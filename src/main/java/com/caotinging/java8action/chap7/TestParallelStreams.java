@@ -1,6 +1,9 @@
 package com.caotinging.java8action.chap7;
 
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.function.Function;
+import java.util.stream.LongStream;
 
 /**
  * @program: Java8Action
@@ -11,6 +14,21 @@ import java.util.function.Function;
 public class TestParallelStreams {
 
     public static void main(String[] args) {
+        System.out.println("forkJoinSum sum done in:" +
+                measureSumPerf(TestParallelStreams::forkJoinSum, 100_000_000) + " msecs");
+
+        /*
+         * forkJoinSum sum done in:373 msecs
+         */
+    }
+
+    public static long forkJoinSum(long n) {
+        long[] numbers = LongStream.rangeClosed(1, n).toArray();
+        ForkJoinTask<Long> task = new ForkJoinSumCalculator(numbers);
+        return new ForkJoinPool().invoke(task);
+    }
+
+    public static void main2(String[] args) {
         System.out.println("Parallel range sum done in:" +
                 measureSumPerf(BetterParallelStreams::parallelRangedSum, 100_000_000) + " msecs");
 
