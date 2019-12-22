@@ -42,17 +42,25 @@ public class ForkJoinSumCalculator extends RecursiveTask<Long> {
         ForkJoinSumCalculator leftTask =
                 new ForkJoinSumCalculator(numbers, start, start + length/2);
 
+        // 使用另一个ForkJoinPool线程异步执行新创建的子任务
         leftTask.fork();
 
         ForkJoinSumCalculator rightTask =
                 new ForkJoinSumCalculator(numbers, start + length/2, end);
 
+        // 继续在这个线程递归调用compute方法，可能会在上一步fork时再次分支
         Long rightResult = rightTask.compute();
-        Long leftResult = leftTask.join();
 
+        // 读取另一半子任务的结果，如果未完成会继续等待
+        Long leftResult = leftTask.join();
         return leftResult+rightResult;
     }
 
+    /**
+     * 在子任务不再分裂时调用的计算方法
+     * @Author: CaoTing
+     * @Date: 2019/12/22
+     */
     private Long computeSequentially() {
         long sum = 0;
         for (int i = start; i< end; i++) {
