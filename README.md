@@ -3315,4 +3315,156 @@ if (任务足够小或不可分) {
 }
 ```
 
+下面是使用分支/合并框架实现并发进行累积和计算的代码:
 
+```java
+public class ForkJoinSumCalculator extends RecursiveTask<Long> {
+
+    private final long[] numbers;
+    private final int start;
+    private final int end;
+
+    private static final long THRESHOLD = 10_000;
+
+    private ForkJoinSumCalculator(long[] numbers, int start, int end) {
+        this.numbers = numbers;
+        this.start = start;
+        this.end = end;
+    }
+
+    public ForkJoinSumCalculator(long[] numbers) {
+        this(numbers,0,numbers.length);
+    }
+
+    /**
+     * Fork 就是把一个大任务切分为若干子任务并行的执行，
+     * Join 就是合并这些子任务的执行结果，最后得到这个大任务的结果
+     * @Author: CaoTing
+     * @Date: 2019/12/22
+     */
+    @Override
+    protected Long compute() {
+        int length = end - start;
+        if (length <= THRESHOLD) {
+            return computeSequentially();
+        }
+
+        ForkJoinSumCalculator leftTask =
+                new ForkJoinSumCalculator(numbers, start, start + length/2);
+
+        // 使用另一个ForkJoinPool线程异步执行新创建的子任务
+        leftTask.fork();
+
+        ForkJoinSumCalculator rightTask =
+                new ForkJoinSumCalculator(numbers, start + length/2, end);
+
+        // 继续在这个线程递归调用compute方法，可能会在上一步fork时再次分支
+        Long rightResult = rightTask.compute();
+
+        // 读取另一半子任务的结果，如果未完成会继续等待
+        Long leftResult = leftTask.join();
+        return leftResult+rightResult;
+    }
+
+    /**
+     * 在子任务不再分裂时调用的计算方法
+     * @Author: CaoTing
+     * @Date: 2019/12/22
+     */
+    private Long computeSequentially() {
+        long sum = 0;
+        for (int i = start; i< end; i++) {
+            sum += numbers[i];
+        }
+        return sum;
+    }
+}
+```
+
+[回顶部](#目录)
+
+#### 使用分支/合并框架的最好做法
+
+虽然分支/合并框架还算简单易用，不幸的是它也很容易被误用。以下是几个有效使用它的
+最佳做法。
+
+- 对一个任务调用join方法会阻塞调用方，直到该任务做出结果。因此，有必要在两个子
+  任务的计算都开始之后再调用它。否则，你得到的版本会比原始的顺序算法更慢更复杂
+  
+- 不应该在RecursiveTask内部使用ForkJoinPool的invoke方法。相反，你应该始终直
+  接调用compute或fork方法，只有顺序代码才应该用invoke来启动并行计算。
+  
+- 对子任务调用fork方法可以把它排进ForkJoinPool。同时对左边和右边的子任务调用
+  它似乎很自然，但这样做的效率要比直接对其中一个调用compute低。这样做你可以为
+  其中一个子任务重用同一线程，从而避免在线程池中多分配一个任务造成的开销。
+  
+- 调试使用分支/合并框架的并行计算可能有点棘手。特别是你平常都在你喜欢的IDE里面
+  看栈跟踪（stack trace）来找问题，但放在分支/合并计算上就不行了，因为调用compute
+  的线程并不是概念上的调用方，后者是调用fork的那个。
+  
+- 和并行流一样，你不应理所当然地认为在多核处理器上使用分支/合并框架就比顺序计
+  算快。
+  
+对于分支/合并拆分策略还有最后一点补充：你必须选择一个标准，来决定任务是要进一步
+划分还是已小到可以顺序求值。
+
+#### 工作窃取
+
+在ForkJoinSumCalculator的例子中，我们决定在要求和的数组中最多包含10 000个项目
+时就不再创建子任务了。这个选择是很随意的，但大多数情况下也很难找到一个好的启发式方法
+来确定它，只能试几个不同的值来优化它。
+
+但分出大量的小任务一般来说都是一个好的选择。这是因为，理想情况下，划分并行任务时，
+应该让每个任务都用完全相同的时间完成，让所有的CPU内核都同样繁忙。但是实际中，每
+个子任务所花的时间可能天差地别，要么是因为划分策略效率低，要么是有不可预知的原因，比如
+磁盘访问慢，或是需要和外部服务协调执行。
+
+分支/合并框架工程用一种称为工作窃取（work stealing）的技术来解决这个问题。在实际应
+用中，这意味着这些任务差不多被平均分配到ForkJoinPool中的所有线程上。每个线程都为分
+配给它的任务保存一个双向链式队列，每完成一个任务，就会从队列头上取出下一个任务开始执
+行。
+
+基于前面所述的原因，某个线程可能早早完成了分配给它的所有任务，也就是它的队列已经
+空了，而其他的线程还很忙。这时，这个线程并没有闲下来，而是随机选了一个别的线程，从队
+列的尾巴上“偷走”一个任务。这个过程一直持续下去，直到所有的任务都执行完毕，所有的队
+列都清空。这就是为什么要划分成许多小任务而不是少数几个大任务，这有助于更好地在工作线程
+之间平衡负载。
+
+一般来说，这种工作窃取算法用于在池中的工作线程之间重新分配和平衡任务。
+
+[回顶部](#目录)
+
+### Spliterator
+
+Spliterator是Java 8中加入的另一个新接口；这个名字代表“可分迭代器”（splitable 
+iterator）。和Iterator一样，Spliterator也用于遍历数据源中的元素，但它是为了并行执行
+而设计的。
+
+**Spliterator接口**
+
+```java
+public interface Spliterator<T> { 
+    boolean tryAdvance(Consumer<? super T> action); 
+    Spliterator<T> trySplit(); 
+    long estimateSize(); 
+    int characteristics(); 
+}
+```
+
+```java
+public int countWordsIteratively(String s) { 
+    
+    int counter = 0; 
+    boolean lastSpace = true; 
+
+    for (char c : s.toCharArray()) { 
+        if (Character.isWhitespace(c)) { 
+            lastSpace = true; 
+        } else { 
+            if (lastSpace) counter++;
+                lastSpace = false; 
+        } 
+    } 
+    return counter; 
+}
+```
