@@ -3451,6 +3451,36 @@ public interface Spliterator<T> {
 }
 ```
 
+- T是Spliterator遍历的元素的类型。
+- tryAdvance方法的行为类似于普通的Iterator，因为它会按顺序一个一个使用Spliterator中的元素，并且如果还有其他元素要遍
+历就返回true。
+- trySplit是专为Spliterator接口设计的，因为它可以把一些元素划出去分
+给第二个Spliterator（由该方法返回），让它们两个并行处理。
+- estimateSize方法可以估计还剩下多少元素要遍历。
+
+#### 拆分过程
+
+将Stream拆分成多个部分的算法是一个递归过程。第一步是对第一个
+Spliterator调用trySplit，生成第二个Spliterator。第二步对这两个Spliterator调用
+trysplit，这样总共就有了四个Spliterator。这个框架不断对Spliterator调用trySplit
+直到它返回null，表明它处理的数据结构不能再分Ҟ，如第三步所示。最后，这个递ॅઞ分过
+程到第四步就终止了，这时所有的Spliterator在调用trySplit时都返回了null。
+
+这个拆分过程也受Spliterator本身的特性影响，而特性是通过characteristics方法声
+明的。
+
+#### Spliterator的特性
+
+Spliterator接口声明的最后一个抽象方法是characteristics，它将返回一个int，代
+表Spliterator本身特性集的编码。下表总结了这些特性
+
+![](http://clevercoder.cn/github/image/2019-12-26_14-16-11.png)
+
+#### 实现你自己的Spliterator
+
+让我们来看一个可能需要你自己实现Spliterator的实际例子。我们要开发一个简单的方
+法来数数一个String中的单词数。这个方法的一个迭代版本可以写成下面的样子：
+
 ```java
 public int countWordsIteratively(String s) { 
     
@@ -3468,3 +3498,35 @@ public int countWordsIteratively(String s) {
     return counter; 
 }
 ```
+
+现在调用它：
+
+```java
+final String SENTENCE = 
+    " Nel mezzo del cammin di nostra vita " + 
+    "mi ritrovai in una selva oscura" + 
+    " ché la dritta via era smarrita "; 
+
+System.out.println("Found " + countWordsIteratively(SENTENCE) + " words");
+```
+
+我在句子里添加了一些额外的随机空格，以演示这个迭代实现即使在两个词之间
+存在多个空格时也能正常工作，这段代码将打印以下内容：
+
+```java
+Found 19 words
+```
+
+理想情况下，你会想要用更为函数式的风格来实现它，因为就像我们前面说过的，这样你就
+可以用并行Stream来并行化这个过程，而无需显式地处理线程和同步问题。
+
+**1. 以函数式风格重写单词计数器**
+
+首先你需要把String转换成一个流。但是原始类型的流仅限于int、long和double，
+所以你只能用Stream<Character>：
+
+```java
+Stream<Character> stream = IntStream.range(0, SENTENCE.length()) 
+                                .mapToObj(SENTENCE::charAt);
+```
+
